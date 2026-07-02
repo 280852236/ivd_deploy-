@@ -1,0 +1,9 @@
+flask
+celery
+redis
+psycopg2-binary
+python-dotenv
+PyPDF2
+waitress
+requests
+gunicorn

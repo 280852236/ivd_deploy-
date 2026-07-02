@@ -1,0 +1,204 @@
+[2026-07-01 16:53:05 +0800] [3879] [INFO] Starting gunicorn 26.0.0
+[2026-07-01 16:53:05 +0800] [3879] [INFO] Listening at: http://0.0.0.0:8081 (3879)
+[2026-07-01 16:53:05 +0800] [3879] [INFO] Using worker: sync
+[2026-07-01 16:53:05 +0800] [3884] [INFO] Booting worker with pid: 3884
+[2026-07-01 16:53:05 +0800] [3885] [INFO] Booting worker with pid: 3885
+[2026-07-01 16:53:05 +0800] [3886] [INFO] Booting worker with pid: 3886
+[2026-07-01 16:53:05 +0800] [3887] [INFO] Booting worker with pid: 3887
+[2026-07-01 16:53:06 +0800] [3879] [INFO] Control socket listening at /run/user/1000/gunicorn.ctl
+[2026-07-01 16:54:05 +0800] [3886] [INFO] Worker exiting (pid: 3886)
+[2026-07-01 16:54:05 +0800] [3879] [INFO] Handling signal: term
+[2026-07-01 16:54:05 +0800] [3887] [INFO] Worker exiting (pid: 3887)
+[2026-07-01 16:54:05 +0800] [3879] [INFO] Worker (pid:3886) was sent SIGTERM!
+[2026-07-01 16:54:05 +0800] [3879] [ERROR] Worker (pid:3885) was sent SIGKILL! Perhaps out of memory?
+[2026-07-01 16:54:15 +0800] [3884] [INFO] Worker exiting (pid: 3884)
+[2026-07-01 16:54:16 +0800] [3879] [INFO] Shutting down: Master
+[2026-07-01 17:07:11 +0800] [1674] [INFO] Starting gunicorn 26.0.0
+[2026-07-01 17:07:11 +0800] [1674] [INFO] Listening at: http://0.0.0.0:8081 (1674)
+[2026-07-01 17:07:11 +0800] [1674] [INFO] Using worker: sync
+[2026-07-01 17:07:11 +0800] [1682] [INFO] Booting worker with pid: 1682
+[2026-07-01 17:07:11 +0800] [1683] [INFO] Booting worker with pid: 1683
+[2026-07-01 17:07:11 +0800] [1684] [INFO] Booting worker with pid: 1684
+[2026-07-01 17:07:11 +0800] [1685] [INFO] Booting worker with pid: 1685
+[2026-07-01 17:07:11 +0800] [1674] [INFO] Control socket listening at /run/user/1000/gunicorn.ctl
+[2026-07-01 17:08:19 +0800] [1674] [CRITICAL] WORKER TIMEOUT (pid:1684)
+[2026-07-01 17:08:19 +0800] [1684] [ERROR] Error handling request (no URI read)
+Traceback (most recent call last):
+  File "/mnt/d/clion/ivd_analyzer/.venv_wsl/lib/python3.14/site-packages/gunicorn/workers/sync.py", line 140, in handle
+    req = next(parser)
+  File "/mnt/d/clion/ivd_analyzer/.venv_wsl/lib/python3.14/site-packages/gunicorn/http/parser.py", line 111, in __next__
+    self.mesg = self.mesg_class(self.cfg, self.unreader, self.source_addr, self.req_count)
+                ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/d/clion/ivd_analyzer/.venv_wsl/lib/python3.14/site-packages/gunicorn/http/message.py", line 459, in __init__
+    super().__init__(cfg, unreader, peer_addr)
+    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/d/clion/ivd_analyzer/.venv_wsl/lib/python3.14/site-packages/gunicorn/http/message.py", line 199, in __init__
+    unused = self.parse(self.unreader)
+  File "/mnt/d/clion/ivd_analyzer/.venv_wsl/lib/python3.14/site-packages/gunicorn/http/message.py", line 471, in parse
+    self.read_into(unreader, buf, stop=True)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/mnt/d/clion/ivd_analyzer/.venv_wsl/lib/python3.14/site-packages/gunicorn/http/message.py", line 605, in read_into
+    data = unreader.read()
+  File "/mnt/d/clion/ivd_analyzer/.venv_wsl/lib/python3.14/site-packages/gunicorn/http/unreader.py", line 36, in read
+    d = self.chunk()
+  File "/mnt/d/clion/ivd_analyzer/.venv_wsl/lib/python3.14/site-packages/gunicorn/http/unreader.py", line 65, in chunk
+    return self.sock.recv(self.mxchunk)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/mnt/d/clion/ivd_analyzer/.venv_wsl/lib/python3.14/site-packages/gunicorn/workers/base.py", line 198, in handle_abort
+    sys.exit(1)
+    ~~~~~~~~^^^
+SystemExit: 1
+[2026-07-01 17:08:19 +0800] [1684] [INFO] Worker exiting (pid: 1684)
+[2026-07-01 17:08:19 +0800] [1704] [INFO] Booting worker with pid: 1704
+[2026-07-01 17:08:19 +0800] [1674] [INFO] Control socket listening at /run/user/1000/gunicorn.ctl
+[2026-07-01 17:10:00 +0800] [1674] [INFO] Handling signal: term
+[2026-07-01 17:10:00 +0800] [1685] [INFO] Worker exiting (pid: 1685)
+[2026-07-01 17:10:00 +0800] [1682] [INFO] Worker exiting (pid: 1682)
+[2026-07-01 17:10:01 +0800] [1674] [ERROR] Worker (pid:1704) was sent SIGKILL! Perhaps out of memory?
+[2026-07-01 17:10:30 +0800] [1674] [INFO] Shutting down: Master
+[2026-07-01 17:18:07 +0800] [586] [INFO] Starting gunicorn 26.0.0
+[2026-07-01 17:18:07 +0800] [586] [INFO] Listening at: http://0.0.0.0:8081 (586)
+[2026-07-01 17:18:07 +0800] [586] [INFO] Using worker: sync
+[2026-07-01 17:18:07 +0800] [591] [INFO] Booting worker with pid: 591
+[2026-07-01 17:18:07 +0800] [592] [INFO] Booting worker with pid: 592
+[2026-07-01 17:18:08 +0800] [593] [INFO] Booting worker with pid: 593
+[2026-07-01 17:18:08 +0800] [594] [INFO] Booting worker with pid: 594
+[2026-07-01 17:18:08 +0800] [586] [INFO] Control socket listening at /run/user/1000/gunicorn.ctl
+[2026-07-01 17:20:39 +0800] [586] [INFO] Handling signal: term
+[2026-07-01 17:20:39 +0800] [591] [INFO] Worker exiting (pid: 591)
+[2026-07-01 17:20:39 +0800] [592] [INFO] Worker exiting (pid: 592)
+[2026-07-01 17:20:40 +0800] [586] [ERROR] Worker (pid:594) was sent SIGKILL! Perhaps out of memory?
+[2026-07-01 17:21:10 +0800] [586] [INFO] Shutting down: Master
+[2026-07-01 17:25:38 +0800] [1318] [INFO] Starting gunicorn 26.0.0
+[2026-07-01 17:25:38 +0800] [1318] [INFO] Listening at: http://0.0.0.0:8081 (1318)
+[2026-07-01 17:25:38 +0800] [1318] [INFO] Using worker: sync
+[2026-07-01 17:25:38 +0800] [1323] [INFO] Booting worker with pid: 1323
+[2026-07-01 17:25:38 +0800] [1324] [INFO] Booting worker with pid: 1324
+[2026-07-01 17:25:38 +0800] [1325] [INFO] Booting worker with pid: 1325
+[2026-07-01 17:25:38 +0800] [1326] [INFO] Booting worker with pid: 1326
+[2026-07-01 17:25:38 +0800] [1318] [INFO] Control socket listening at /run/user/1000/gunicorn.ctl
+[2026-07-01 17:34:39 +0800] [2324] [INFO] Starting gunicorn 26.0.0
+[2026-07-01 17:34:39 +0800] [2324] [INFO] Listening at: http://0.0.0.0:8081 (2324)
+[2026-07-01 17:34:39 +0800] [2324] [INFO] Using worker: sync
+[2026-07-01 17:34:39 +0800] [2329] [INFO] Booting worker with pid: 2329
+[2026-07-01 17:34:39 +0800] [2330] [INFO] Booting worker with pid: 2330
+[2026-07-01 17:34:39 +0800] [2324] [INFO] Control socket listening at /run/user/1000/gunicorn.ctl
+[2026-07-01 18:13:38 +0800] [5330] [INFO] Starting gunicorn 26.0.0
+[2026-07-01 18:13:38 +0800] [5330] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-01 18:13:38 +0800] [5330] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-01 18:13:39 +0800] [5330] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-01 18:13:39 +0800] [5330] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-01 18:13:40 +0800] [5330] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-01 18:13:40 +0800] [5330] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-01 18:13:41 +0800] [5330] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-01 18:13:41 +0800] [5330] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-01 18:13:42 +0800] [5330] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-01 18:13:42 +0800] [5330] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-01 18:13:43 +0800] [5330] [ERROR] Can't connect to ('0.0.0.0', 8081)
+[2026-07-01 18:21:13 +0800] [2330] [INFO] Worker exiting (pid: 2330)
+[2026-07-01 18:21:13 +0800] [2329] [INFO] Worker exiting (pid: 2329)
+[2026-07-01 18:21:13 +0800] [2324] [INFO] Handling signal: term
+[2026-07-01 18:21:13 +0800] [2324] [INFO] Worker (pid:2329) was sent SIGTERM!
+[2026-07-01 18:21:13 +0800] [2324] [INFO] Worker (pid:2330) was sent SIGTERM!
+[2026-07-01 18:21:13 +0800] [2324] [INFO] Shutting down: Master
+[2026-07-01 18:21:24 +0800] [5717] [INFO] Starting gunicorn 26.0.0
+[2026-07-01 18:21:24 +0800] [5717] [INFO] Listening at: http://0.0.0.0:8081 (5717)
+[2026-07-01 18:21:24 +0800] [5717] [INFO] Using worker: sync
+[2026-07-01 18:21:24 +0800] [5723] [INFO] Booting worker with pid: 5723
+[2026-07-01 18:21:24 +0800] [5724] [INFO] Booting worker with pid: 5724
+[2026-07-01 18:21:25 +0800] [5717] [INFO] Control socket listening at /run/user/1000/gunicorn.ctl
+[2026-07-01 18:37:01 +0800] [5717] [INFO] Handling signal: term
+[2026-07-01 18:37:02 +0800] [5717] [ERROR] Worker (pid:5724) was sent SIGKILL! Perhaps out of memory?
+[2026-07-02 08:23:57 +0800] [1421] [INFO] Starting gunicorn 26.0.0
+[2026-07-02 08:23:57 +0800] [1421] [INFO] Listening at: http://0.0.0.0:8081 (1421)
+[2026-07-02 08:23:57 +0800] [1421] [INFO] Using worker: sync
+[2026-07-02 08:23:57 +0800] [1426] [INFO] Booting worker with pid: 1426
+[2026-07-02 08:23:57 +0800] [1427] [INFO] Booting worker with pid: 1427
+[2026-07-02 08:23:57 +0800] [1421] [INFO] Control socket listening at /run/user/1000/gunicorn.ctl
+[2026-07-02 08:29:52 +0800] [1421] [INFO] Handling signal: term
+[2026-07-02 08:29:53 +0800] [1421] [ERROR] Worker (pid:1426) was sent SIGKILL! Perhaps out of memory?
+[2026-07-02 08:32:45 +0800] [487] [INFO] Starting gunicorn 26.0.0
+[2026-07-02 08:32:45 +0800] [487] [INFO] Listening at: http://0.0.0.0:8081 (487)
+[2026-07-02 08:32:45 +0800] [487] [INFO] Using worker: sync
+[2026-07-02 08:32:45 +0800] [492] [INFO] Booting worker with pid: 492
+[2026-07-02 08:32:45 +0800] [493] [INFO] Booting worker with pid: 493
+[2026-07-02 08:32:45 +0800] [487] [INFO] Control socket listening at /run/user/1000/gunicorn.ctl
+[2026-07-02 08:33:46 +0800] [487] [INFO] Handling signal: term
+[2026-07-02 08:33:47 +0800] [487] [ERROR] Worker (pid:492) was sent SIGKILL! Perhaps out of memory?
+[2026-07-02 08:34:17 +0800] [487] [INFO] Shutting down: Master
+[2026-07-02 08:36:25 +0800] [533] [INFO] Starting gunicorn 26.0.0
+[2026-07-02 08:36:25 +0800] [533] [INFO] Listening at: http://0.0.0.0:8081 (533)
+[2026-07-02 08:36:25 +0800] [533] [INFO] Using worker: sync
+[2026-07-02 08:36:25 +0800] [538] [INFO] Booting worker with pid: 538
+[2026-07-02 08:36:25 +0800] [539] [INFO] Booting worker with pid: 539
+[2026-07-02 08:36:25 +0800] [533] [INFO] Control socket listening at /run/user/1000/gunicorn.ctl
+[2026-07-02 08:43:55 +0800] [467] [INFO] Starting gunicorn 26.0.0
+[2026-07-02 08:43:55 +0800] [467] [INFO] Listening at: http://0.0.0.0:8081 (467)
+[2026-07-02 08:43:55 +0800] [467] [INFO] Using worker: sync
+[2026-07-02 08:43:55 +0800] [472] [INFO] Booting worker with pid: 472
+[2026-07-02 08:43:55 +0800] [473] [INFO] Booting worker with pid: 473
+[2026-07-02 08:43:55 +0800] [467] [INFO] Control socket listening at /run/user/1000/gunicorn.ctl
+[2026-07-02 08:52:53 +0800] [470] [INFO] Starting gunicorn 26.0.0
+[2026-07-02 08:52:53 +0800] [470] [INFO] Listening at: http://0.0.0.0:8081 (470)
+[2026-07-02 08:52:53 +0800] [470] [INFO] Using worker: sync
+[2026-07-02 08:52:53 +0800] [475] [INFO] Booting worker with pid: 475
+[2026-07-02 08:52:53 +0800] [476] [INFO] Booting worker with pid: 476
+[2026-07-02 08:52:53 +0800] [470] [INFO] Control socket listening at /run/user/1000/gunicorn.ctl
+[2026-07-02 11:41:16 +0800] [16114] [INFO] Starting gunicorn 26.0.0
+[2026-07-02 11:41:16 +0800] [16114] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-02 11:41:16 +0800] [16114] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-02 11:41:17 +0800] [16114] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-02 11:41:17 +0800] [16114] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-02 11:41:18 +0800] [16114] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-02 11:41:18 +0800] [16114] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-02 11:41:19 +0800] [16114] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-02 11:41:19 +0800] [16114] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-02 11:41:20 +0800] [16114] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-02 11:41:20 +0800] [16114] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-02 11:41:21 +0800] [16114] [ERROR] Can't connect to ('0.0.0.0', 8081)
+[2026-07-02 11:50:02 +0800] [475] [INFO] Worker exiting (pid: 475)
+[2026-07-02 11:50:02 +0800] [470] [INFO] Handling signal: term
+[2026-07-02 11:50:02 +0800] [476] [INFO] Worker exiting (pid: 476)
+[2026-07-02 11:50:03 +0800] [470] [INFO] Worker (pid:475) was sent SIGTERM!
+[2026-07-02 11:50:04 +0800] [470] [INFO] Shutting down: Master
+[2026-07-02 11:53:15 +0800] [17284] [INFO] Starting gunicorn 26.0.0
+[2026-07-02 11:53:15 +0800] [17284] [INFO] Listening at: http://0.0.0.0:8081 (17284)
+[2026-07-02 11:53:15 +0800] [17284] [INFO] Using worker: sync
+[2026-07-02 11:53:15 +0800] [17289] [INFO] Booting worker with pid: 17289
+[2026-07-02 11:53:15 +0800] [17290] [INFO] Booting worker with pid: 17290
+[2026-07-02 11:53:15 +0800] [17284] [INFO] Control socket listening at /run/user/1000/gunicorn.ctl
+[2026-07-02 11:54:50 +0800] [17602] [INFO] Starting gunicorn 26.0.0
+[2026-07-02 11:54:50 +0800] [17602] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-02 11:54:50 +0800] [17602] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-02 11:54:51 +0800] [17602] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-02 11:54:51 +0800] [17602] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-02 11:54:52 +0800] [17602] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-02 11:54:52 +0800] [17602] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-02 11:54:53 +0800] [17602] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-02 11:54:53 +0800] [17602] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-02 11:54:54 +0800] [17602] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-02 11:54:54 +0800] [17602] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-02 11:54:55 +0800] [17602] [ERROR] Can't connect to ('0.0.0.0', 8081)
+[2026-07-02 11:58:19 +0800] [17761] [INFO] Starting gunicorn 26.0.0
+[2026-07-02 11:58:19 +0800] [17761] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-02 11:58:19 +0800] [17761] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-02 11:58:20 +0800] [17761] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-02 11:58:20 +0800] [17761] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-02 11:58:21 +0800] [17761] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-02 11:58:21 +0800] [17761] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-02 11:58:22 +0800] [17761] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-02 11:58:22 +0800] [17761] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-02 11:58:23 +0800] [17761] [ERROR] Connection in use: ('0.0.0.0', 8081)
+[2026-07-02 11:58:23 +0800] [17761] [ERROR] connection to ('0.0.0.0', 8081) failed: [Errno 98] Address already in use
+[2026-07-02 11:58:24 +0800] [17761] [ERROR] Can't connect to ('0.0.0.0', 8081)
+[2026-07-02 12:05:25 +0800] [17284] [INFO] Handling signal: term
+[2026-07-02 12:05:25 +0800] [17289] [INFO] Worker exiting (pid: 17289)
+[2026-07-02 12:05:25 +0800] [17290] [INFO] Worker exiting (pid: 17290)
+[2026-07-02 12:05:25 +0800] [17284] [INFO] Worker (pid:17289) was sent SIGTERM!
+[2026-07-02 12:05:26 +0800] [17284] [INFO] Shutting down: Master
+[2026-07-02 12:05:30 +0800] [18370] [INFO] Starting gunicorn 26.0.0
+[2026-07-02 12:05:30 +0800] [18370] [INFO] Listening at: http://0.0.0.0:8081 (18370)
+[2026-07-02 12:05:30 +0800] [18370] [INFO] Using worker: sync
+[2026-07-02 12:05:30 +0800] [18375] [INFO] Booting worker with pid: 18375
+[2026-07-02 12:05:30 +0800] [18376] [INFO] Booting worker with pid: 18376
+[2026-07-02 12:05:30 +0800] [18370] [INFO] Control socket listening at /run/user/1000/gunicorn.ctl

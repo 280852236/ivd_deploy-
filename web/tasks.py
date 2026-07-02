@@ -1,0 +1,143 @@
+import os
+import tempfile
+import uuid
+import shutil
+from datetime import datetime
+from celery_app import celery
+from app import (
+    process_text_file_from_bytes,
+    process_zip_file,
+    get_rules,
+    store_analysis_result,
+    _build_date_groups,
+    _compute_summary,
+    sanitize_filename,
+    REAGENT_COOLING_RULES,
+    get_redis,
+    Config
+)
+import logging
+
+logger = logging.getLogger(__name__)
+
+def _cleanup_upload_files(file_paths):
+    for fp in file_paths:
+        try:
+            if os.path.exists(fp):
+                os.remove(fp)
+        except Exception:
+            pass
+    parent_dir = os.path.dirname(file_paths[0]) if file_paths else None
+    if parent_dir and parent_dir.startswith(tempfile.gettempdir()) and 'ivd_upload_' in parent_dir:
+        try:
+            shutil.rmtree(parent_dir, ignore_errors=True)
+        except Exception:
+            pass
+
+@celery.task(bind=True, name='analyze_files')
+def analyze_files_task(self, file_paths, series, model, analysis_type=''):
+    """
+    异步分析任务
+    file_paths: 已保存的临时文件路径列表（绝对路径）
+    series, model: 设备系列和型号
+    analysis_type: 分析类型，如 'reagent_cooling' 等
+    """
+    # 使用 Celery 任务 ID 作为存储 key
+    analysis_id = self.request.id
+
+    try:
+        # 获取基础规则
+        rules = get_rules(series, model)
+        # 根据类型追加特殊规则
+        if analysis_type == 'reagent_cooling':
+            rules = rules + REAGENT_COOLING_RULES
+            logger.info(f"试剂制冷排查模式，已追加 {len(REAGENT_COOLING_RULES)} 条专用规则")
+
+        all_files = {}
+        all_analysis = []
+        all_file_metadata = []
+        all_file_contents = {}
+        preview_text = ''
+        zip_has_more = False
+        zip_next_index = 0
+        zip_total_candidates = 0
+        temp_zip_path = None
+
+        for idx, file_path in enumerate(file_paths):
+            filename = os.path.basename(file_path)
+            if filename.lower().endswith('.zip'):
+                with open(file_path, 'rb') as f:
+                    result = process_zip_file(f, rules, series, model)
+                all_files.update(result.get('files', {}))
+                all_analysis.extend(result.get('analysis', []))
+                all_file_metadata.extend(result.get('file_metadata', []))
+                all_file_contents.update(result.get('file_contents', {}))
+                if not preview_text:
+                    preview_text = result.get('preview', '')
+                zip_has_more = result.get('has_more_files', False)
+                zip_next_index = result.get('next_index', 0)
+                zip_total_candidates = result.get('total_candidates', 0)
+                temp_zip_path = file_path
+            else:
+                with open(file_path, 'rb') as f:
+                    file_bytes = f.read()
+                result = process_text_file_from_bytes(file_bytes, filename, rules, series, model)
+                for fname, fdata in result.get('files', {}).items():
+                    if fname in all_files:
+                        unique_name = f"{fname}_{idx}"
+                        all_files[unique_name] = fdata
+                        if fname in result.get('file_contents', {}):
+                            all_file_contents[unique_name] = result['file_contents'][fname]
+                    else:
+                        all_files[fname] = fdata
+                        if fname in result.get('file_contents', {}):
+                            all_file_contents[fname] = result['file_contents'][fname]
+                all_analysis.extend(result.get('analysis', []))
+                all_file_metadata.extend(result.get('file_metadata', []))
+                if not preview_text:
+                    preview_text = result.get('preview', '')
+
+        result_data = {
+            'analysis': all_analysis,
+            'file_metadata': all_file_metadata[:50],
+            'files': all_files,
+            'preview': preview_text[:1000] if preview_text else '',
+            'matched_count': len(all_analysis),
+            'has_more_files': zip_has_more,
+            'next_index': zip_next_index,
+            'total_candidates': zip_total_candidates,
+            'file_name': os.path.basename(file_paths[0]) if len(file_paths) == 1 else f"{len(file_paths)}个文件",
+            'series': series,
+            'model': model,
+            'analysis_type': analysis_type,
+            'analyzed_at': datetime.now().strftime('%Y-%m-%d % H:%M:%S'),
+            'temp_zip_path': temp_zip_path,
+            'zip_processed': len(all_files),
+        }
+        files = result_data['files']
+        date_groups = _build_date_groups(files)
+        summary = _compute_summary(files)
+        result_data['date_groups'] = date_groups
+        result_data['summary'] = summary
+        result_data['total_dates'] = len(date_groups)
+        result_data['total_files'] = len(files)
+
+        store_analysis_result(analysis_id, result_data)
+        
+        # 单独存储每个文件的详细内容（优化性能）
+        r = get_redis()
+        ttl = Config.ANALYSIS_TTL_HOURS * 3600
+        for filename, file_data in all_file_contents.items():
+            try:
+                key = f"file:{analysis_id}:{filename}"
+                r.set(key, json.dumps(file_data, ensure_ascii=False), ex=ttl)
+            except Exception as e:
+                logger.warning(f"存储文件内容失败 {filename}: {e}")
+        
+        _cleanup_upload_files(file_paths)
+        return {'status': 'completed', 'analysis_id': analysis_id}
+    except Exception as e:
+        _cleanup_upload_files(file_paths)
+        logger.exception("异步分析任务失败")
+        self.update_state(state='FAILURE', meta={'error': str(e)})
+        raise

@@ -1,0 +1,147 @@
+package matcher
+
+import (
+    "ivd_analyzer_go/db"
+    "strconv"
+    "strings"
+)
+
+type AnalysisItem struct {
+    Type              string                 `json:"type"`
+    Keywords          []string               `json:"keywords,omitempty"`
+    Advice            string                 `json:"advice,omitempty"`
+    Source            string                 `json:"source,omitempty"`
+    OriginalText      string                 `json:"original_text"`
+    EventTime         string                 `json:"event_time"`
+    EventDate         string                 `json:"event_date"`
+    MotorMatch        *MotorMatch            `json:"motor_match,omitempty"`
+    MatchedConditions []string               `json:"matched_conditions,omitempty"`
+    MatchedCount      int                    `json:"matched_count,omitempty"`
+}
+
+func AnalyzeText(text, series, model string, skipMotorStatus bool) []AnalysisItem {
+    var results []AnalysisItem
+
+    if !skipMotorStatus {
+        motorMatches := FindMotorStatusMatches(text, model)
+        for _, m := range motorMatches {
+            item := AnalysisItem{
+                Type:         "motor_status_match",
+                Keywords:     m.Keywords,
+                Advice:       m.Advice,
+                Source:       m.Source,
+                OriginalText: m.OriginalText,
+                EventTime:    m.EventTime,
+                EventDate:    m.EventDate,
+                MotorMatch:   &m,
+            }
+            results = append(results, item)
+        }
+    }
+
+    lines := strings.Split(text, "\n")
+    matchedLines := make(map[string]bool)
+    for _, line := range lines {
+        line = strings.TrimSpace(line)
+        if line == "" {
+            continue
+        }
+        asp := CheckAspirationAnomaly(line)
+        if asp.Matched {
+            keyword := "样本空吸"
+            if asp.Type == "reagent" {
+                keyword = "试剂空吸"
+            }
+			adviceText := "检测到 " + strconv.Itoa(len(asp.Conditions)) + " 个异常条件："
+            item := AnalysisItem{
+                Type:         "keyword_match",
+                Keywords:     []string{keyword},
+                Advice:       adviceText,
+                Source:       "异常条件检测",
+                OriginalText: line,
+                EventTime:    extractNearestTimestamp(line, 0),
+                EventDate:    normalizeEventDate(extractNearestTimestamp(line, 0)),
+                MatchedConditions: asp.Conditions,
+                MatchedCount: len(asp.Conditions),
+            }
+            results = append(results, item)
+            matchedLines[line] = true
+        }
+    }
+
+    rules, _ := db.GetRules(series, model)
+    for _, rule := range rules {
+        keywords := strings.Split(rule.Keywords, ",")
+        for _, kw := range keywords {
+            kw = strings.TrimSpace(kw)
+            if kw == "" {
+                continue
+            }
+            idx := strings.Index(strings.ToLower(text), strings.ToLower(kw))
+            if idx != -1 {
+                orig := extractLineContext(text, idx)
+                if matchedLines[orig] {
+                    continue
+                }
+                item := AnalysisItem{
+                    Type:         "keyword_match",
+                    Keywords:     []string{kw},
+                    Advice:       rule.Advice,
+                    Source:       "手动规则",
+                    OriginalText: orig,
+                    EventTime:    extractNearestTimestamp(text, idx),
+                    EventDate:    normalizeEventDate(extractNearestTimestamp(text, idx)),
+                }
+                results = append(results, item)
+                matchedLines[orig] = true
+            }
+        }
+    }
+    return results
+}
+
+func extractLineContext(text string, index int) string {
+    start := strings.LastIndex(text[:index], "\n") + 1
+    end := strings.Index(text[index:], "\n")
+    if end == -1 {
+        end = len(text)
+    } else {
+        end += index
+    }
+    return strings.TrimSpace(text[start:end])
+}
+
+func extractNearestTimestamp(text string, index int) string {
+    if len(text) == 0 {
+        return ""
+    }
+    window := 250
+    start := index - window
+    if start < 0 {
+        start = 0
+    }
+    end := index + window
+    if end > len(text) {
+        end = len(text)
+    }
+    context := text[start:end]
+    for _, pat := range timestampPatterns {
+        loc := pat.FindStringIndex(context)
+        if loc != nil {
+            return context[loc[0]:loc[1]]
+        }
+    }
+    return ""
+}
+
+func normalizeEventDate(eventTime string) string {
+    if eventTime == "" {
+        return "未识别日期"
+    }
+    parts := strings.Split(eventTime, " ")
+    if len(parts) > 0 {
+        date := parts[0]
+        return strings.ReplaceAll(date, "/", "-")
+    }
+    return "未识别日期"
+}
