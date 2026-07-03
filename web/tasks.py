@@ -2,6 +2,7 @@ import os
 import tempfile
 import uuid
 import shutil
+import json
 from datetime import datetime
 from celery_app import celery
 from app import (
@@ -123,17 +124,7 @@ def analyze_files_task(self, file_paths, series, model, analysis_type=''):
         result_data['total_files'] = len(files)
 
         store_analysis_result(analysis_id, result_data)
-        
-        # 单独存储每个文件的详细内容（优化性能）
-        r = get_redis()
-        ttl = Config.ANALYSIS_TTL_HOURS * 3600
-        for filename, file_data in all_file_contents.items():
-            try:
-                key = f"file:{analysis_id}:{filename}"
-                r.set(key, json.dumps(file_data, ensure_ascii=False), ex=ttl)
-            except Exception as e:
-                logger.warning(f"存储文件内容失败 {filename}: {e}")
-        
+
         _cleanup_upload_files(file_paths)
         return {'status': 'completed', 'analysis_id': analysis_id}
     except Exception as e:
