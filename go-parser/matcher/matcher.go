@@ -52,7 +52,7 @@ func AnalyzeText(text, series, model string, skipMotorStatus bool) []AnalysisIte
             if asp.Type == "reagent" {
                 keyword = "试剂空吸"
             }
-			adviceText := "检测到 " + strconv.Itoa(len(asp.Conditions)) + " 个异常条件："
+			adviceText := "检测到 " + strconv.Itoa(len(asp.Conditions)) + " 个异常条件：" + strings.Join(asp.Conditions, "、") + "。建议检查样本/试剂供应情况和管路连接。"
             item := AnalysisItem{
                 Type:         "keyword_match",
                 Keywords:     []string{keyword},
@@ -77,23 +77,36 @@ func AnalyzeText(text, series, model string, skipMotorStatus bool) []AnalysisIte
             if kw == "" {
                 continue
             }
-            idx := strings.Index(strings.ToLower(text), strings.ToLower(kw))
-            if idx != -1 {
+            textLower := strings.ToLower(text)
+            kwLower := strings.ToLower(kw)
+            startIdx := 0
+            for {
+                idx := strings.Index(textLower[startIdx:], kwLower)
+                if idx == -1 {
+                    break
+                }
+                idx += startIdx
                 orig := extractLineContext(text, idx)
                 if matchedLines[orig] {
+                    startIdx = idx + 1
                     continue
+                }
+                source := "手动规则"
+                if rule.Source == "pdf" {
+                    source = "PDF知识库"
                 }
                 item := AnalysisItem{
                     Type:         "keyword_match",
                     Keywords:     []string{kw},
                     Advice:       rule.Advice,
-                    Source:       "手动规则",
+                    Source:       source,
                     OriginalText: orig,
                     EventTime:    extractNearestTimestamp(text, idx),
                     EventDate:    normalizeEventDate(extractNearestTimestamp(text, idx)),
                 }
                 results = append(results, item)
                 matchedLines[orig] = true
+                startIdx = idx + 1
             }
         }
     }

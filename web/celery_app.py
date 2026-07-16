@@ -21,6 +21,5 @@ celery.conf.update(
     task_track_started=True,
     task_time_limit=30 * 60,
     task_soft_time_limit=25 * 60,
+    task_send_sent_event=True,   # 添加这一行，开启任务事件发送
 )
-
-# 删除原有的 celery.autodiscover_tasks(['.']) 这行

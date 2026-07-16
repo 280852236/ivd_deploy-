@@ -7,3 +7,5 @@ PyPDF2
 waitress
 requests
 gunicorn
+prometheus-flask-exporter
+rarfile

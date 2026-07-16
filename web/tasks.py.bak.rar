@@ -8,7 +8,6 @@ from celery_app import celery
 from app import (
     process_text_file_from_bytes,
     process_zip_file,
-    process_rar_file,
     get_rules,
     store_analysis_result,
     _build_date_groups,
@@ -80,15 +79,7 @@ def analyze_files_task(self, file_paths, series, model, analysis_type=''):
                 zip_next_index = result.get('next_index', 0)
                 zip_total_candidates = result.get('total_candidates', 0)
                 temp_zip_path = file_path
-            elif filename.lower().endswith('.rar'):
-                result = process_rar_file(file_path, rules, series, model)
-                all_files.update(result.get('files', {}))
-                all_analysis.extend(result.get('analysis', []))
-                all_file_metadata.extend(result.get('file_metadata', []))
-                all_file_contents.update(result.get('file_contents', {}))
-                if not preview_text:
-                    preview_text = result.get('preview', '')
-                temp_zip_path = file_path
+
             else:
                 with open(file_path, 'rb') as f:
                     file_bytes = f.read()

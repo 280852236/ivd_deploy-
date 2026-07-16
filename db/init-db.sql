@@ -1,5 +1,14 @@
 -- IVD故障分析平台数据库初始化脚本
 
+-- 创建users表（用户账户）
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    permission INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- 创建series表
 CREATE TABLE IF NOT EXISTS series (
     id SERIAL PRIMARY KEY,
@@ -56,7 +65,7 @@ INSERT INTO models (series_id, name)
 SELECT s.id, 'SMART6500' FROM series s WHERE s.name = 'SMART' 
 ON CONFLICT (series_id, name) DO NOTHING;
 
-INSERT INTO models (series_id, name) 
+INSERT INTO models (series_id, name)   
 SELECT s.id, 'SMART500' FROM series s WHERE s.name = 'SMART' 
 ON CONFLICT (series_id, name) DO NOTHING;
 
@@ -124,3 +133,63 @@ SELECT m.id, '卡杯', '🔧 检查清洗针、泵阀'
 FROM models m JOIN series s ON m.series_id = s.id
 WHERE s.name = 'VENUS' AND m.name = 'VENUS9900'
 ON CONFLICT DO NOTHING;
+-- ========== 硬件故障案例表 ==========
+-- 为每个型号创建硬件故障表和图片表
+-- SMART系列
+CREATE TABLE IF NOT EXISTS hardware_failures_smart6500 (
+    id SERIAL PRIMARY KEY,
+    phenomenon TEXT NOT NULL,
+    cause TEXT,
+    workaround TEXT,
+    process TEXT,
+    solution TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS hardware_failure_images_smart6500 (
+    id SERIAL PRIMARY KEY,
+    failure_id INTEGER NOT NULL REFERENCES hardware_failures_smart6500(id) ON DELETE CASCADE,
+    image_data BYTEA NOT NULL,
+    image_mime TEXT DEFAULT 'image/jpeg',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS hardware_failures_smart8000 (
+    id SERIAL PRIMARY KEY,
+    phenomenon TEXT NOT NULL,
+    cause TEXT,
+    workaround TEXT,
+    process TEXT,
+    solution TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS hardware_failure_images_smart8000 (
+    id SERIAL PRIMARY KEY,
+    failure_id INTEGER NOT NULL REFERENCES hardware_failures_smart8000(id) ON DELETE CASCADE,
+    image_data BYTEA NOT NULL,
+    image_mime TEXT DEFAULT 'image/jpeg',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- VENUS系列
+CREATE TABLE IF NOT EXISTS hardware_failures_venus100 (
+    id SERIAL PRIMARY KEY,
+    phenomenon TEXT NOT NULL,
+    cause TEXT,
+    workaround TEXT,
+    process TEXT,
+    solution TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS hardware_failure_images_venus100 (
+    id SERIAL PRIMARY KEY,
+    failure_id INTEGER NOT NULL REFERENCES hardware_failures_venus100(id) ON DELETE CASCADE,
+    image_data BYTEA NOT NULL,
+    image_mime TEXT DEFAULT 'image/jpeg',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

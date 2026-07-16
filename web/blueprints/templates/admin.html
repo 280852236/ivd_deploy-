@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>知识库管理</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* 自定义样式，补充Bootstrap */
+        body { font-family: system-ui; background: #f5f7fb; padding: 30px; }
+        .container { max-width: 1200px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        h2 { color: #1e6f9f; margin-bottom: 20px; }
+        /* 自定义按钮（避免与Bootstrap冲突） */
+        .ivd-btn { 
+            padding: 10px 20px; 
+            border: none; 
+            border-radius: 10px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            transition: all 0.3s; 
+            background: #1e6f9f; 
+            color: white; 
+        }
+        .ivd-btn:hover { background: #2a8fd4; }
+        .ivd-btn-danger { background: #dc3545; color: white; }
+        .ivd-btn-danger:hover { background: #c82333; }
+        .ivd-btn-success { background: #28a745; color: white; }
+        .ivd-btn-success:hover { background: #20c997; }
+        .ivd-btn-warning { background: #ffc107; color: #333; }
+        .ivd-btn-warning:hover { background: #e0a800; }
+        .ivd-btn-sm { padding: 5px 10px; font-size: 0.8rem; }
+        /* Tabs自定义 */
+        .ivd-tabs { display: flex; gap: 10px; border-bottom: 2px solid #eee; margin-bottom: 20px; flex-wrap:wrap; }
+        .ivd-tab { padding: 12px 24px; cursor: pointer; border-radius: 10px 10px 0 0; transition: all 0.3s; }
+        .ivd-tab:hover { background: #f0f4f8; }
+        .ivd-tab.active { background: #1e6f9f; color: white; }
+        .ivd-tab-content { display: none; padding: 20px 0; }
+        .ivd-tab-content.active { display: block; }
+        /* 其他原有样式 */
+        .rule-item { border: 2px solid #e0e8f0; border-radius: 12px; padding: 15px; margin: 10px 0; }
+        .rule-item .actions { display: flex; gap: 10px; margin-top: 10px; }
+        .badge { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+        .badge-pdf { background: #d4edda; color: #155724; }
+        .badge-manual { background: #fff3cd; color: #856404; }
+        .logout { float: right; color: #dc3545; text-decoration: none; }
+        .logout:hover { text-decoration: underline; }
+        .upload-area { border: 3px dashed #1e6f9f; border-radius: 15px; padding: 30px; text-align: center; cursor: pointer; background: #f8faff; margin: 15px 0; }
+        .upload-area:hover { background: #f0f7ff; }
+        .result-box { padding: 15px; border-radius: 10px; margin: 10px 0; }
+        .result-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .result-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .result-info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .table-container { max-height: 500px; overflow-y: auto; margin-top: 10px; }
+        .flex-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2><i class="fas fa-book me-2"></i>知识库管理 <a href="/admin/logout" class="logout"><i class="fas fa-sign-out-alt me-1"></i>退出</a></h2>
+    <div class="ivd-tabs">
+        <div class="ivd-tab active" onclick="switchTab('rules')"><i class="fas fa-pen me-1"></i> 规则管理</div>
+        <div class="ivd-tab" onclick="switchTab('pdf')"><i class="fas fa-file-pdf me-1"></i> PDF导入</div>
+        <div class="ivd-tab" onclick="switchTab('versions')"><i class="fas fa-history me-1"></i> 版本历史</div>
+    </div>
+    <div id="tab-rules" class="ivd-tab-content active">
+        <div class="d-flex gap-2 mb-3">
+            <select id="adminSeries" class="form-select" style="flex:1;"><option value="">选择系列</option><option value="SMART">SMART</option><option value="VENUS">VENUS</option></select>
+            <select id="adminModel" class="form-select" style="flex:1;" disabled><option>请先选择系列</option></select>
+            <button class="ivd-btn" onclick="loadRules()"><i class="fas fa-folder-open me-1"></i> 加载规则</button>
+        </div>
+        <div id="rulesList"></div>
+        <hr style="margin:30px 0;">
+        <h3><i class="fas fa-plus-circle me-1"></i> 添加规则</h3>
+        <div class="mb-3"><input id="newKeywords" class="form-control" placeholder="关键词（逗号分隔）"></div>
+        <div class="mb-3"><textarea id="newAdvice" class="form-control" rows="3" placeholder="建议内容"></textarea></div>
+        <button class="ivd-btn ivd-btn-success" onclick="addRule()"><i class="fas fa-save me-1"></i> 保存</button>
+    </div>
+    <div id="tab-pdf" class="ivd-tab-content">
+        <h3><i class="fas fa-file-pdf me-1"></i> PDF知识库导入</h3>
+        <p class="text-secondary">将PDF故障文档导入知识库，自动提取电机状态数据</p>
+        <div class="d-flex gap-2 mb-3">
+            <select id="pdfSeries" class="form-select" style="flex:1;"><option value="">选择系列</option><option value="SMART">SMART</option><option value="VENUS">VENUS</option></select>
+            <select id="pdfModel" class="form-select" style="flex:1;" disabled><option>请先选择系列</option></select>
+        </div>
+        <div class="upload-area" onclick="document.getElementById('pdfFileInput').click()">
+            <div style="font-size:1.2rem;"><i class="fas fa-cloud-upload-alt me-2"></i>点击选择PDF文件</div>
+            <div style="font-size:0.9rem;color:#999;">支持 .pdf 格式</div>
+            <input type="file" id="pdfFileInput" accept=".pdf" style="display:none" onchange="handlePdfSelect(event)">
+            <div id="pdfFileName" style="margin-top:10px;font-weight:500;color:#1e6f9f;"></div>
+        </div>
+        <button class="ivd-btn ivd-btn-success w-100 py-3" onclick="importPdf()" id="importPdfBtn"><i class="fas fa-upload me-1"></i> 导入PDF知识库</button>
+        <div id="pdfResult" class="mt-3"></div>
+        <hr style="margin:30px 0;">
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            <h3 style="margin:0;color:#1e6f9f;"><i class="fas fa-table me-1"></i> 电机状态数据</h3>
+            <span class="text-secondary" style="font-size:0.9rem;">(选择系列和型号后查看)</span>
+            <button class="ivd-btn ivd-btn-sm" onclick="loadMotorStatus()"><i class="fas fa-sync me-1"></i> 刷新</button>
+            <button class="ivd-btn ivd-btn-danger ivd-btn-sm" onclick="clearMotorStatus()"><i class="fas fa-trash me-1"></i> 清空</button>
+            <button class="ivd-btn ivd-btn-success ivd-btn-sm" onclick="exportMotorStatus()"><i class="fas fa-file-csv me-1"></i> 导出CSV</button>
+        </div>
+        <div id="motorStatusList" class="mt-3"><div class="result-box result-info"><i class="fas fa-info-circle me-1"></i> 请选择系列和型号后点击"刷新"</div></div>
+    </div>
+    <div id="tab-versions" class="ivd-tab-content"><div id="versionList"><div class="result-box result-info"><i class="fas fa-spinner fa-spin me-1"></i> 加载中...</div></div></div>
+</div>
+
+<script>
+let CSRF_TOKEN = '';
+fetch('/api/csrf-token').then(r=>r.json()).then(d=>{CSRF_TOKEN=d.csrf_token;}).catch(()=>{});
+
+// ========== 全局变量 ==========
+let motorStatusOffset = 0;
+let motorStatusLimit = 50;
+let motorStatusTotal = 0;
+let motorStatusModel = '';
+let motorStatusLoading = false;
+
+// ========== 系列联动 ==========
+document.getElementById('adminSeries').onchange = async function() {
+    const series = this.value;
+    if (!series) { document.getElementById('adminModel').disabled = true; return; }
+    const resp = await fetch(`/api/models?series=${series}`);
+    const models = await resp.json();
+    const sel = document.getElementById('adminModel');
+    sel.disabled = false;
+    sel.innerHTML = '<option value="">选择型号</option>' + models.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
+};
+
+document.getElementById('pdfSeries').onchange = async function() {
+    const series = this.value;
+    if (!series) { document.getElementById('pdfModel').disabled = true; return; }
+    const resp = await fetch(`/api/models?series=${series}`);
+    const models = await resp.json();
+    const sel = document.getElementById('pdfModel');
+    sel.disabled = false;
+    sel.innerHTML = '<option value="">选择型号</option>' + models.map(m => `<option value="${m.name}">${m.name}</option>`).join('');
+    document.getElementById('motorStatusList').innerHTML = '<div class="result-box result-info"><i class="fas fa-info-circle me-1"></i> 请选择系列和型号后点击"刷新"</div>';
+};
+
+document.getElementById('pdfModel').onchange = function() {
+    if (this.value) loadMotorStatus();
+};
+
+// ========== Tab切换 ==========
+function switchTab(name) {
+    document.querySelectorAll('.ivd-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.ivd-tab-content').forEach(t => t.classList.remove('active'));
+    const tabMap = {'rules':0, 'pdf':1, 'versions':2};
+    document.querySelectorAll('.ivd-tab')[tabMap[name]].classList.add('active');
+    document.getElementById(`tab-${name}`).classList.add('active');
+    if (name === 'versions') loadVersions();
+    if (name === 'pdf') {
+        const series = document.getElementById('pdfSeries').value;
+        const model = document.getElementById('pdfModel').value;
+        if (series && model) loadMotorStatus();
+        else document.getElementById('motorStatusList').innerHTML = '<div class="result-box result-info"><i class="fas fa-info-circle me-1"></i> 请选择系列和型号后点击"刷新"</div>';
+    }
+}
+
+// ========== 规则管理 ==========
+async function loadRules() {
+    const series = document.getElementById('adminSeries').value;
+    const model = document.getElementById('adminModel').value;
+    if (!series || !model) { alert('请选择系列和型号'); return; }
+    const resp = await fetch(`/api/rules?series=${series}&model=${model}`);
+    const rules = await resp.json();
+    const container = document.getElementById('rulesList');
+    if (rules.length === 0) { container.innerHTML = '<div class="text-secondary text-center py-3">暂无规则</div>'; return; }
+    let html = '';
+    rules.forEach(r => {
+        html += `<div class="rule-item">
+            <div><strong>ID: ${r.id}</strong> <span class="badge ${r.source === 'pdf' ? 'badge-pdf' : 'badge-manual'}">${r.source === 'pdf' ? '📖 PDF导入' : '⚙️ 手动'}</span></div>
+            <div class="mb-2"><input id="kw_${r.id}" class="form-control" value="${r.keywords.join(', ')}"></div>
+            <div class="mb-2"><textarea id="adv_${r.id}" class="form-control" rows="2">${r.advice}</textarea></div>
+            <div class="actions">
+                <button class="ivd-btn ivd-btn-sm" onclick="updateRule(${r.id})"><i class="fas fa-save me-1"></i> 保存</button>
+                <button class="ivd-btn ivd-btn-danger ivd-btn-sm" onclick="deleteRule(${r.id})"><i class="fas fa-trash me-1"></i> 删除</button>
+            </div>
+        </div>`;
+    });
+    container.innerHTML = html;
+}
+
+async function updateRule(id) {
+    const keywords = document.getElementById(`kw_${id}`).value.trim();
+    const advice = document.getElementById(`adv_${id}`).value.trim();
+    if (!keywords || !advice) { alert('请填写完整'); return; }
+    const resp = await fetch(`/api/rules/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify({keywords, advice, csrf_token: CSRF_TOKEN}) });
+    const data = await resp.json();
+    if (data.success) { alert('✅ 更新成功'); loadRules(); } else alert('❌ 更新失败: ' + data.error);
+}
+
+async function deleteRule(id) {
+    if (!confirm('确定删除？')) return;
+    const resp = await fetch(`/api/rules/${id}?csrf_token=${encodeURIComponent(CSRF_TOKEN)}`, { method:'DELETE' });
+    const data = await resp.json();
+    if (data.success) { alert('✅ 删除成功'); loadRules(); } else alert('❌ 删除失败: ' + data.error);
+}
+
+async function addRule() {
+    const series = document.getElementById('adminSeries').value;
+    const model = document.getElementById('adminModel').value;
+    const keywords = document.getElementById('newKeywords').value.trim();
+    const advice = document.getElementById('newAdvice').value.trim();
+    if (!series || !model) { alert('请选择系列和型号'); return; }
+    if (!keywords || !advice) { alert('请填写完整'); return; }
+    const resp = await fetch('/api/rules', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({series, model, keywords, advice, csrf_token: CSRF_TOKEN}) });
+    const data = await resp.json();
+    if (data.success) { alert('✅ 添加成功'); document.getElementById('newKeywords').value = ''; document.getElementById('newAdvice').value = ''; loadRules(); }
+    else alert('❌ 添加失败: ' + data.error);
+}
+
+// ========== PDF导入 ==========
+let selectedPdfFile = null;
+function handlePdfSelect(event) {
+    if (event.target.files.length) {
+        selectedPdfFile = event.target.files[0];
+        document.getElementById('pdfFileName').innerHTML = `<i class="fas fa-check-circle text-success me-1"></i> ${selectedPdfFile.name} (${(selectedPdfFile.size/1024).toFixed(0)} KB)`;
+        document.getElementById('pdfResult').innerHTML = '';
+    }
+}
+
+async function importPdf() {
+    const series = document.getElementById('pdfSeries').value;
+    const model = document.getElementById('pdfModel').value;
+    if (!series || !model) { document.getElementById('pdfResult').innerHTML = '<div class="result-box result-error"><i class="fas fa-exclamation-triangle me-1"></i> 请选择系列和型号</div>'; return; }
+    if (!selectedPdfFile) { document.getElementById('pdfResult').innerHTML = '<div class="result-box result-error"><i class="fas fa-exclamation-triangle me-1"></i> 请选择PDF文件</div>'; return; }
+    if (!selectedPdfFile.name.toLowerCase().endsWith('.pdf')) { document.getElementById('pdfResult').innerHTML = '<div class="result-box result-error"><i class="fas fa-exclamation-triangle me-1"></i> 请上传PDF格式文件</div>'; return; }
+    const btn = document.getElementById('importPdfBtn');
+    const resultDiv = document.getElementById('pdfResult');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> 导入中...';
+    resultDiv.innerHTML = '<div class="result-box result-info"><i class="fas fa-spinner fa-spin me-1"></i> 处理中，请稍候...</div>';
+    const fd = new FormData(); fd.append('file', selectedPdfFile); fd.append('series', series); fd.append('model', model); fd.append('csrf_token', CSRF_TOKEN);
+    try {
+        const resp = await fetch('/api/import_pdf', { method:'POST', body:fd });
+        const data = await resp.json();
+        if (data.success) {
+            resultDiv.innerHTML = `<div class="result-box result-success"><i class="fas fa-check-circle me-1"></i> ${data.message} (提取了 ${data.total_extracted || 0} 条，导入了 ${data.count} 条)</div>`;
+            selectedPdfFile = null; document.getElementById('pdfFileInput').value = ''; document.getElementById('pdfFileName').innerHTML = '';
+            loadMotorStatus();
+        } else {
+            resultDiv.innerHTML = `<div class="result-box result-error"><i class="fas fa-exclamation-triangle me-1"></i> ${data.error}</div>`;
+        }
+    } catch (err) {
+        resultDiv.innerHTML = `<div class="result-box result-error"><i class="fas fa-exclamation-triangle me-1"></i> 导入失败: ${err.message}</div>`;
+        console.error('PDF导入错误:', err);
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload me-1"></i> 导入PDF知识库';
+    }
+}
+
+// ========== 电机状态数据（分页加载） ==========
+async function loadMotorStatus() {
+    motorStatusOffset = 0;
+    motorStatusTotal = 0;
+    motorStatusModel = document.getElementById('pdfModel').value;
+    const container = document.getElementById('motorStatusList');
+    container.innerHTML = '<div class="result-box result-info"><i class="fas fa-spinner fa-spin me-1"></i> 加载中...</div>';
+    if (!motorStatusModel) {
+        container.innerHTML = '<div class="result-box result-info"><i class="fas fa-info-circle me-1"></i> 请先选择型号</div>';
+        return;
+    }
+    try {
+        const resp = await fetch(`/api/motor_status?model=${encodeURIComponent(motorStatusModel)}&limit=${motorStatusLimit}&offset=0`);
+        const data = await resp.json();
+        motorStatusTotal = data.total;
+        if (data.total === 0) {
+            container.innerHTML = `<div class="result-box result-info"><i class="fas fa-inbox me-1"></i> 型号 "${motorStatusModel}" 暂无电机状态数据</div>`;
+            return;
+        }
+        renderMotorStatusTable(data.data, false);
+        motorStatusOffset = data.data.length;
+        showLoadMoreButton();
+    } catch (err) {
+        container.innerHTML = `<div class="result-box result-error"><i class="fas fa-exclamation-triangle me-1"></i> 加载失败: ${err.message}</div>`;
+    }
+}
+
+function renderMotorStatusTable(data, append) {
+    const container = document.getElementById('motorStatusList');
+    const series = document.getElementById('pdfSeries').value || 'SMART';
+    let html = '';
+    if (!append) {
+        html = `<div class="result-box result-success"><i class="fas fa-check-circle me-1"></i> ${series}/${motorStatusModel} - 共 ${motorStatusTotal} 条电机状态数据</div>`;
+        html += `<div class="table-container"><table class="table table-striped table-hover"><thead><tr><th>板卡</th><th>电机</th><th>状态</th><th>完整描述</th></tr></thead><tbody>`;
+        data.forEach(row => {
+            html += `<tr><td><strong>${row.board_card || ''}</strong></td><td><strong>${row.motor_code || ''}</strong></td><td><strong>${row.status_code || ''}</strong></td><td>${row.full_description || row.description || '-'}</td></tr>`;
+        });
+        html += `</tbody></table></div>`;
+        html += `<div id="motorStatusFooter" class="text-secondary mt-2">已加载 ${data.length} 条，共 ${motorStatusTotal} 条</div>`;
+        html += `<div id="loadMoreContainer"></div>`;
+        container.innerHTML = html;
+    } else {
+        const tbody = container.querySelector('tbody');
+        if (!tbody) return;
+        data.forEach(row => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td><strong>${row.board_card || ''}</strong></td><td><strong>${row.motor_code || ''}</strong></td><td><strong>${row.status_code || ''}</strong></td><td>${row.full_description || row.description || '-'}</td>`;
+            tbody.appendChild(tr);
+        });
+        updateFooter();
+    }
+}
+
+function updateFooter() {
+    const footer = document.getElementById('motorStatusFooter');
+    if (footer) footer.textContent = `已加载 ${motorStatusOffset} 条，共 ${motorStatusTotal} 条`;
+}
+
+function showLoadMoreButton() {
+    const container = document.getElementById('loadMoreContainer');
+    if (!container) return;
+    if (motorStatusOffset >= motorStatusTotal) {
+        container.innerHTML = `<div class="text-secondary"><i class="fas fa-check-circle text-success me-1"></i> 已加载全部 ${motorStatusTotal} 条</div>`;
+        return;
+    }
+    container.innerHTML = `<button class="ivd-btn ivd-btn-sm" onclick="loadMoreMotorStatus()" style="width:auto;padding:8px 20px;margin:10px auto;display:block;"><i class="fas fa-arrow-down me-1"></i> 加载更多 50 条 (已加载 ${motorStatusOffset}/${motorStatusTotal})</button>`;
+}
+
+async function loadMoreMotorStatus() {
+    if (motorStatusLoading) return;
+    if (motorStatusOffset >= motorStatusTotal) {
+        alert('已全部加载');
+        return;
+    }
+    motorStatusLoading = true;
+    const btn = document.querySelector('#loadMoreContainer button');
+    if (btn) btn.disabled = true;
+    try {
+        const resp = await fetch(`/api/motor_status?model=${encodeURIComponent(motorStatusModel)}&limit=${motorStatusLimit}&offset=${motorStatusOffset}`);
+        const data = await resp.json();
+        if (data.data.length === 0) {
+            showLoadMoreButton();
+            motorStatusLoading = false;
+            return;
+        }
+        renderMotorStatusTable(data.data, true);
+        motorStatusOffset += data.data.length;
+        updateFooter();
+        showLoadMoreButton();
+    } catch (err) {
+        alert('加载更多失败: ' + err.message);
+    } finally {
+        motorStatusLoading = false;
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function clearMotorStatus() {
+    const model = document.getElementById('pdfModel').value;
+    if (!model) { alert('⚠️ 请先选择型号'); return; }
+    if (!confirm(`⚠️ 确定要清空 ${model} 的所有电机状态数据吗？此操作不可恢复！`)) return;
+    try {
+        const resp = await fetch(`/api/motor_status/clear?model=${encodeURIComponent(model)}&csrf_token=${encodeURIComponent(CSRF_TOKEN)}`, { method:'DELETE' });
+        const data = await resp.json();
+        if (data.success) {
+            alert('✅ 已清空所有数据');
+            motorStatusOffset = 0; motorStatusTotal = 0;
+            loadMotorStatus();
+        } else alert('❌ 清空失败: ' + data.error);
+    } catch (err) { alert('❌ 清空失败: ' + err.message); }
+}
+
+async function exportMotorStatus() {
+    const model = document.getElementById('pdfModel').value;
+    if (!model) { alert('⚠️ 请先选择型号'); return; }
+    try {
+        const resp = await fetch(`/api/motor_status?model=${encodeURIComponent(model)}&limit=10000`);
+        const data = await resp.json();
+        if (data.total === 0) { alert('⚠️ 没有数据可导出'); return; }
+        let csv = '板卡,电机,状态,完整描述\\n';
+        data.data.forEach(row => {
+            const desc = row.full_description || row.description || '';
+            csv += `${row.board_card},${row.motor_code},${row.status_code},"${desc.replace(/"/g,'""')}"\\n`;
+        });
+        const blob = new Blob(['\\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = `motor_status_${model}_${new Date().toISOString().slice(0,10)}.csv`;
+        link.click();
+    } catch (err) { alert('❌ 导出失败: ' + err.message); }
+}
+
+// ========== 版本历史 ==========
+async function loadVersions() {
+    document.getElementById('versionList').innerHTML = '<div class="result-box result-info"><i class="fas fa-info-circle me-1"></i> 📜 版本历史功能开发中...</div>';
+}
+</script>
+</body>
+</html>

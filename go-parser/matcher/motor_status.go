@@ -34,6 +34,7 @@ func FindMotorStatusMatches(text, model string) []MotorMatch {
     seen := make(map[string]bool)
     var unmatched []struct {
         board, motor, status, hex string
+        originalText string
     }
 
     for _, match := range longHexPattern.FindAllStringSubmatch(text, -1) {
@@ -49,7 +50,7 @@ func FindMotorStatusMatches(text, model string) []MotorMatch {
             board := groups[0]
             motor := groups[2]
             status := groups[3]
-            key := board + motor + status
+            key := hex  // 使用完整的hex作为key，避免误判重复
             if seen[key] {
                 continue
             }
@@ -58,14 +59,21 @@ func FindMotorStatusMatches(text, model string) []MotorMatch {
             if err != nil {
                 continue
             }
+            idx := strings.Index(text, match[0])
+            if idx == -1 {
+                idx = 0
+            }
+            originalText := extractLineContext(text, idx)
             if ms != nil {
                 result := buildMotorMatch(ms, board, motor, status)
                 result.RawHex = hex
+                result.OriginalText = originalText
                 matches = append(matches, result)
             } else {
                 unmatched = append(unmatched, struct {
                     board, motor, status, hex string
-                }{board: board, motor: motor, status: status, hex: hex})
+                    originalText string
+                }{board: board, motor: motor, status: status, hex: hex, originalText: originalText})
             }
         }
     }
@@ -74,7 +82,7 @@ func FindMotorStatusMatches(text, model string) []MotorMatch {
         board := strings.ToUpper(match[1])
         motor := strings.ToUpper(match[2])
         status := strings.ToUpper(match[3])
-        key := board + motor + status
+        key := board + " " + motor + " " + status  // 使用完整的匹配作为key
         if seen[key] {
             continue
         }
@@ -83,29 +91,37 @@ func FindMotorStatusMatches(text, model string) []MotorMatch {
         if err != nil {
             continue
         }
+        idx := strings.Index(text, match[0])
+        if idx == -1 {
+            idx = 0
+        }
+        originalText := extractLineContext(text, idx)
         if ms != nil {
             result := buildMotorMatch(ms, board, motor, status)
+            result.OriginalText = originalText
             matches = append(matches, result)
         } else {
             unmatched = append(unmatched, struct {
                 board, motor, status, hex string
-            }{board: board, motor: motor, status: status, hex: fmt.Sprintf("%s %s %s", board, motor, status)})
+                originalText string
+            }{board: board, motor: motor, status: status, hex: fmt.Sprintf("%s %s %s", board, motor, status), originalText: originalText})
         }
     }
 
     for _, u := range unmatched {
         msg := fmt.Sprintf("未识别故障码 [%s]，板卡:%s 电机:%s 状态:%s，请补充电机状态表数据", u.hex, u.board, u.motor, u.status)
         matches = append(matches, MotorMatch{
-            Type:       "motor_status_match",
-            BoardCard:  u.board,
-            MotorCode:  u.motor,
-            StatusCode: u.status,
-            Diagnosis:  msg,
-            Advice:     msg,
-            Source:     "电机状态表(未匹配)",
-            Keywords:   []string{u.board + " " + u.motor + " " + u.status},
-            RawHex:     u.hex,
-            Unmatched:  true,
+            Type:         "motor_status_match",
+            BoardCard:    u.board,
+            MotorCode:    u.motor,
+            StatusCode:   u.status,
+            Diagnosis:    msg,
+            Advice:       msg,
+            Source:       "电机状态表(未匹配)",
+            Keywords:     []string{u.board + " " + u.motor + " " + u.status},
+            RawHex:       u.hex,
+            Unmatched:    true,
+            OriginalText: u.originalText,
         })
     }
     return matches

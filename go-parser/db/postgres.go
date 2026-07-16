@@ -1,10 +1,13 @@
 package db
 
 import (
-    "database/sql"
-    "fmt"
-    _ "github.com/lib/pq"
-    "ivd_analyzer_go/config"
+	"database/sql"
+	"fmt"
+	_ "github.com/lib/pq"
+	"ivd_analyzer_go/config"
+	"regexp"
+	"strings"
+	"time"
 )
 
 var DB *sql.DB
@@ -13,11 +16,14 @@ func Init(cfg *config.Config) error {
     connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
         cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName)
     var err error
-    DB, err = sql.Open("postgres", connStr)
-    if err != nil {
-        return err
-    }
-    return DB.Ping()
+	DB, err = sql.Open("postgres", connStr)
+	if err != nil {
+		return err
+	}
+	DB.SetMaxOpenConns(20)
+	DB.SetMaxIdleConns(5)
+	DB.SetConnMaxLifetime(30 * time.Minute)
+	return DB.Ping()
 }
 
 type Rule struct {
@@ -63,8 +69,20 @@ func GetRules(series, model string) ([]Rule, error) {
     return rules, nil
 }
 
+func sanitizeTableName(model string) string {
+	re := regexp.MustCompile(`[^a-zA-Z0-9_]`)
+	clean := re.ReplaceAllString(model, "")
+	if clean == "" {
+		return ""
+	}
+	return "motor_status_" + strings.ToLower(clean)
+}
+
 func LookupMotorStatus(board, motor, status, model string) (*MotorStatus, error) {
-    tableName := fmt.Sprintf("motor_status_%s", model)
+	tableName := sanitizeTableName(model)
+	if tableName == "" {
+		return nil, fmt.Errorf("invalid model name: %s", model)
+	}
     row := DB.QueryRow(fmt.Sprintf(`
         SELECT board_card, motor_code, status_code, motor_name, action_type, target_value, sensor, description, full_description
         FROM %s
