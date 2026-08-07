@@ -2454,7 +2454,7 @@ function renderNeedleGroups(items, needleCategory) {
     const abnormalItems = items.filter(i => i.abnormal && i.abnormal.abnormal);
     const cmdItems = items.filter(i => !i.isReturn);
     const cycleCount = items.filter(i => i.parsed && i.parsed.cmdType === 'B').length;
-    const truncated = items.length > MAX_MODAL_DISPLAY;
+    const truncated = false;
 
     let html = '';
     html += '<div style="background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);border-left:3px solid #f59e0b;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.82rem;color:#475569;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
@@ -2471,7 +2471,7 @@ function renderNeedleGroups(items, needleCategory) {
     html += '</div>';
 
     html += '<div style="max-height:calc(95vh - 200px);overflow-y:auto;">';
-    const displayItems = items.slice(0, MAX_MODAL_DISPLAY);
+    const displayItems = items;
     let abnIdx = 0;
     let cycleNums = {};
     displayItems.forEach((item) => {
@@ -2588,7 +2588,7 @@ async function openFaultModal(type) {
         if (coolingMatches.length === 0) {
             html = `<div style="text-align:center;padding:60px 20px;color:#94a3b8;"><i class="fas fa-snowflake" style="font-size:3rem;opacity:0.3;margin-bottom:16px;"></i><div style="font-size:1.1rem;font-weight:600;">未找到0C/1C制冷命令记录</div><div style="margin-top:8px;font-size:0.85rem;">搜索命令格式: &lt;00-88&gt; 0C/1C ...</div></div>`;
         } else {
-            const displayItems = coolingMatches.slice(0, MAX_MODAL_DISPLAY);
+            const displayItems = coolingMatches;
             const isFail = (parsed) => {
                 if (!parsed) return false;
                 if (parsed.flagInfo && parsed.flagInfo.flagItems.some(f => !f.on)) return true;
@@ -2607,7 +2607,7 @@ async function openFaultModal(type) {
             } else {
                 failInfo = '，<span style="color:#16a34a;font-weight:600;">全部正常</span>';
             }
-            html = `<div style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);border-left:3px solid #0ea5e9;border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.85rem;color:#475569;"><i class="fas fa-info-circle" style="margin-right:6px;"></i>共找到 <strong style="color:#0ea5e9;">${coolingMatches.length}</strong> 条制冷命令${failInfo}${coolingMatches.length > MAX_MODAL_DISPLAY ? `，当前显示前${MAX_MODAL_DISPLAY}条` : ''}，以下逐条解析字段含义</div>`;
+            html = `<div style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);border-left:3px solid #0ea5e9;border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.85rem;color:#475569;"><i class="fas fa-info-circle" style="margin-right:6px;"></i>共找到 <strong style="color:#0ea5e9;">${coolingMatches.length}</strong> 条制冷命令${failInfo}，以下逐条解析字段含义</div>`;
             html += '<div style="max-height:calc(95vh - 160px);overflow-y:auto;">';
 
             displayItems.forEach((m, i) => {
@@ -2696,10 +2696,10 @@ async function openFaultModal(type) {
             html = `<div style="text-align:center;padding:60px 20px;color:#94a3b8;"><i class="fas ${config.icon}" style="font-size:3rem;opacity:0.3;margin-bottom:16px;"></i><div style="font-size:1.1rem;font-weight:600;">未找到${config.title}相关记录</div><div style="margin-top:8px;font-size:0.85rem;">搜索关键词: ${config.keywords.join(', ')}</div></div>`;
         }
     } else {
-        html += `<div style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);border-left:3px solid ${config.color};border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.85rem;color:#475569;"><i class="fas fa-info-circle" style="margin-right:6px;"></i>共找到 <strong style="color:${config.color};">${matches.length}</strong> 条关键词匹配记录${matches.length > MAX_MODAL_DISPLAY ? `，当前显示前${MAX_MODAL_DISPLAY}条` : ''}</div>`;
+        html += `<div style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);border-left:3px solid ${config.color};border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.85rem;color:#475569;"><i class="fas fa-info-circle" style="margin-right:6px;"></i>共找到 <strong style="color:${config.color};">${matches.length}</strong> 条关键词匹配记录</div>`;
         html += '<div style="max-height:calc(95vh - 160px);overflow-y:auto;">';
         const kwRegex = new RegExp('(' + config.keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');
-        matches.slice(0, MAX_MODAL_DISPLAY).forEach((m, i) => {
+        matches.forEach((m, i) => {
             const highlighted = escapeHtml(m.text).replace(kwRegex, '<mark style="background:#fef08a;padding:1px 3px;border-radius:2px;">$1</mark>');
             html += `<div style="display:flex;gap:8px;padding:6px 10px;margin:4px 0;background:white;border-radius:6px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.05);"><span style="color:#94a3b8;font-size:0.75rem;min-width:40px;text-align:right;flex-shrink:0;padding-top:2px;">L${m.lineNum}</span><span style="font-family:monospace;font-size:0.85rem;line-height:1.5;white-space:pre-wrap;word-break:break-word;flex:1;">${highlighted}</span></div>`;
         });
@@ -2714,7 +2714,7 @@ function openMatchModal(groupId, title) {
     const icon = groupId === 'sampleMatches' ? 'fa-vial' : 'fa-flask';
     document.getElementById('modalTitle').innerHTML = `<i class="fas ${icon}" style="margin-right:8px;"></i>${title} - 全文查看`;
     const items = window.matchData[groupId] || [];
-    const displayItems = items.slice(0, MAX_MODAL_DISPLAY);
+    const displayItems = items;
     const bgColor = groupId === 'sampleMatches' ? '#e0f2fe' : '#f3e8ff';
     const borderColor = groupId === 'sampleMatches' ? 'var(--info)' : 'var(--purple)';
     let contentHtml = '';
