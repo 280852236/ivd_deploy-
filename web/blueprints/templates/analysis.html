@@ -2453,12 +2453,13 @@ function renderNeedleGroups(items, needleCategory) {
 
     const abnormalItems = items.filter(i => i.abnormal && i.abnormal.abnormal);
     const cmdItems = items.filter(i => !i.isReturn);
+    let firstAbnormalIdx = -1;
 
     let html = '';
     html += '<div style="background:linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);border-left:3px solid #f59e0b;border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.85rem;color:#475569;">';
     html += '<i class="fas fa-syringe" style="margin-right:6px;"></i>加注针监测: 共 <strong>' + items.length + '</strong> 行连续记录';
     if (abnormalItems.length > 0) {
-        html += '，<span style="color:#dc2626;font-weight:700;">异常' + abnormalItems.length + '条</span>';
+        html += '，<span style="color:#dc2626;font-weight:700;cursor:pointer;text-decoration:underline;" onclick="document.getElementById(\'needle-abnormal-0\')&&document.getElementById(\'needle-abnormal-0\').scrollIntoView({behavior:\'smooth\',block:\'center\'})">异常' + abnormalItems.length + '条(点击定位)</span>';
     } else if (cmdItems.length > 0) {
         html += '，<span style="color:#16a34a;font-weight:600;">全部正常</span>';
     }
@@ -2466,40 +2467,43 @@ function renderNeedleGroups(items, needleCategory) {
 
     html += '<div style="max-height:calc(95vh - 220px);overflow-y:auto;">';
     const displayItems = items.slice(0, MAX_MODAL_DISPLAY);
+    let abnormalIdx = 0;
     displayItems.forEach((item, i) => {
         const isAbnormal = item.abnormal && item.abnormal.abnormal;
         const borderColor = isAbnormal ? (item.abnormal.level === '严重' ? '#dc2626' : '#f59e0b') : '#e2e8f0';
         const bgColor = isAbnormal ? '#fef2f2' : '#f8fafc';
+        const cleanText = item.text.replace(/\s+\d+\s*$/, '');
+        const divId = isAbnormal ? ' id="needle-abnormal-' + abnormalIdx + '"' : '';
+        if (isAbnormal) abnormalIdx++;
 
-        html += '<div id="needle-item-' + i + '" style="margin:4px 0;background:white;border-radius:6px;border:1px solid ' + borderColor + ';box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;">';
-        html += '<div style="display:flex;gap:8px;padding:5px 10px;background:' + bgColor + ';border-bottom:1px solid ' + borderColor + ';align-items:center;">';
-        html += '<span style="color:#94a3b8;font-size:0.72rem;min-width:40px;text-align:right;flex-shrink:0;">L' + item.lineNum + '</span>';
+        html += '<div' + divId + ' style="margin:3px 0;background:white;border-radius:6px;border:1px solid ' + borderColor + ';box-shadow:0 1px 2px rgba(0,0,0,0.04);overflow:hidden;">';
+        html += '<div style="display:flex;gap:6px;padding:4px 10px;background:' + bgColor + ';border-bottom:1px solid ' + borderColor + ';align-items:center;">';
         if (item.parsed) {
             const cmdColors = { 'B': '#6366f1', 'C': '#0ea5e9', 'D': '#10b981', 'E': '#f59e0b' };
             const cmdColor = cmdColors[item.parsed.cmdType] || '#64748b';
-            html += '<span style="background:' + cmdColor + ';color:white;font-weight:600;font-size:0.7rem;padding:1px 5px;border-radius:3px;font-family:monospace;flex-shrink:0;">' + item.parsed.cmd + '</span>';
-            html += '<span style="color:' + (item.parsed.ok ? '#16a34a' : '#dc2626') + ';font-size:0.7rem;flex-shrink:0;">' + item.parsed.status + '</span>';
+            html += '<span style="background:' + cmdColor + ';color:white;font-weight:600;font-size:0.68rem;padding:1px 5px;border-radius:3px;font-family:monospace;flex-shrink:0;">' + item.parsed.cmd + '</span>';
         } else if (item.isReturn) {
-            html += '<span style="background:#64748b;color:white;font-weight:600;font-size:0.7rem;padding:1px 5px;border-radius:3px;font-family:monospace;flex-shrink:0;">返回</span>';
+            html += '<span style="background:#64748b;color:white;font-weight:600;font-size:0.68rem;padding:1px 5px;border-radius:3px;font-family:monospace;flex-shrink:0;">返回</span>';
         }
-        html += '<span style="font-family:monospace;font-size:0.8rem;line-height:1.4;white-space:pre-wrap;word-break:break-word;flex:1;color:#334155;">' + escapeHtml(item.text) + '</span>';
+        html += '<span style="font-family:monospace;font-size:0.82rem;line-height:1.4;white-space:pre;flex:1;color:#334155;">' + escapeHtml(cleanText) + '</span>';
         html += '</div>';
 
         if (item.parsed && item.parsed.ok && item.parsed.fields && item.parsed.fields.desc) {
-            html += '<div style="padding:5px 12px;font-size:0.78rem;line-height:1.6;">';
-            html += '<div style="display:grid;grid-template-columns:100px 1fr;gap:1px 8px;">';
-            html += '<span style="color:#94a3b8;">说明:</span><span style="color:#64748b;">' + escapeHtml(item.parsed.fields.desc) + '</span>';
-            if (item.parsed.fields.label1) html += '<span style="color:#94a3b8;">' + escapeHtml(item.parsed.fields.label1) + ':</span><span style="color:#334155;font-weight:500;">' + escapeHtml(String(item.parsed.fields.val1)) + '</span>';
-            if (item.parsed.fields.label2) html += '<span style="color:#94a3b8;">' + escapeHtml(item.parsed.fields.label2) + ':</span><span style="color:#334155;font-weight:500;">' + escapeHtml(String(item.parsed.fields.val2)) + '</span>';
-            if (item.parsed.fields.label3) html += '<span style="color:#94a3b8;">' + escapeHtml(item.parsed.fields.label3) + ':</span><span style="color:#334155;font-weight:500;">' + escapeHtml(String(item.parsed.fields.val3)) + '</span>';
-            html += '</div></div>';
+            const f = item.parsed.fields;
+            let ruleText = f.desc;
+            if (f.label1) ruleText += ' | ' + f.label1 + ': ' + f.val1;
+            if (f.label2) ruleText += ' | ' + f.label2 + ': ' + f.val2;
+            if (f.label3) ruleText += ' | ' + f.label3 + ': ' + f.val3;
+            html += '<div style="padding:3px 12px;font-size:0.75rem;color:#64748b;background:#fafbfc;line-height:1.5;">' + escapeHtml(ruleText) + '</div>';
         } else if (item.parsed && !item.parsed.ok) {
-            html += '<div style="padding:4px 12px;font-size:0.78rem;color:#dc2626;">查询失败，数据无效</div>';
+            html += '<div style="padding:3px 12px;font-size:0.75rem;color:#dc2626;background:#fafbfc;">查询失败，数据无效</div>';
+        } else if (item.isReturn) {
+            html += '<div style="padding:3px 12px;font-size:0.75rem;color:#64748b;background:#fafbfc;">设备返回响应</div>';
         }
 
         if (isAbnormal) {
-            html += '<div style="padding:5px 12px;background:#fee2e2;border-top:1px solid #fecaca;">';
-            html += '<span style="color:#dc2626;font-weight:600;font-size:0.78rem;"><i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i>' + escapeHtml(item.abnormal.reason) + '</span>';
+            html += '<div style="padding:3px 12px;background:#fee2e2;border-top:1px solid #fecaca;">';
+            html += '<span style="color:#dc2626;font-weight:600;font-size:0.75rem;"><i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i>' + escapeHtml(item.abnormal.reason) + '</span>';
             html += '</div>';
         }
 
