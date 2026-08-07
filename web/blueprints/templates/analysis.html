@@ -2379,23 +2379,37 @@ function parseNeedleLine(line, series) {
 
 function analyzeNeedleAbnormal(parsed, series) {
     if (!parsed || !parsed.ok) return { abnormal: false, reason: '' };
-    if (parsed.cmdType !== 'E') return { abnormal: false, reason: '' };
 
-    const diff = parsed.fields.val3;
-    const diffNum = parseInt(diff);
-    if (isNaN(diffNum)) return { abnormal: false, reason: '' };
-
-    // Sample needle: normal -10 to 0, abnormal if < -30
-    // Reagent needle: normal -30 to 0, abnormal if < -100
-    if (parsed.needleType === '样本针') {
-        if (diffNum < -30) return { abnormal: true, level: '严重', reason: `样本针行程差值${diffNum} < -30，超过1mm误差阈值` };
-        if (diffNum < -10) return { abnormal: true, level: '警告', reason: `样本针行程差值${diffNum} < -10，超出正常范围` };
-        return { abnormal: false, reason: `样本针行程差值${diffNum}在正常范围(-10~0)` };
-    } else {
-        if (diffNum < -100) return { abnormal: true, level: '严重', reason: `试剂针行程差值${diffNum} < -100，探液异常` };
-        if (diffNum < -30) return { abnormal: true, level: '警告', reason: `试剂针行程差值${diffNum} < -30，超出正常范围` };
-        return { abnormal: false, reason: `试剂针行程差值${diffNum}在正常范围(-30~0)` };
+    if (parsed.cmdType === 'E') {
+        const diff = parsed.fields.val3;
+        const diffNum = parseInt(diff);
+        if (isNaN(diffNum)) return { abnormal: false, reason: '' };
+        if (parsed.needleType === '样本针') {
+            if (diffNum < -30) return { abnormal: true, level: '严重', reason: `样本针行程差值${diffNum} < -30，超过1mm误差阈值` };
+            if (diffNum < -10) return { abnormal: true, level: '警告', reason: `样本针行程差值${diffNum} < -10，超出正常范围` };
+            return { abnormal: false, reason: '' };
+        } else {
+            if (diffNum < -100) return { abnormal: true, level: '严重', reason: `试剂针行程差值${diffNum} < -100，探液异常` };
+            if (diffNum < -30) return { abnormal: true, level: '警告', reason: `试剂针行程差值${diffNum} < -30，超出正常范围` };
+            return { abnormal: false, reason: '' };
+        }
     }
+
+    if (parsed.cmdType === 'C') {
+        const afterLevel = parseInt(parsed.fields.val3);
+        if (!isNaN(afterLevel) && afterLevel === 0) {
+            return { abnormal: true, level: '严重', reason: '脱离液面后液位为0，脱离液面失败(空吸)' };
+        }
+    }
+
+    if (parsed.cmdType === 'B') {
+        const diff = parseInt(parsed.fields.val3);
+        if (!isNaN(diff) && diff > 20) {
+            return { abnormal: true, level: '警告', reason: `探液高度差值${diff} > 20，可能空吸` };
+        }
+    }
+
+    return { abnormal: false, reason: '' };
 }
 
 function groupNeedleData(lines, needleCategory, series) {
@@ -2431,7 +2445,7 @@ function groupNeedleData(lines, needleCategory, series) {
                 }
             }
             if (isTarget) {
-                const abnormal = parsed.cmdType === 'E' ? analyzeNeedleAbnormal(parsed, series) : null;
+                const abnormal = analyzeNeedleAbnormal(parsed, series);
                 results.push({ lineNum: idx + 1, text: line, parsed: parsed, abnormal: abnormal, isReturn: false });
                 return;
             }
