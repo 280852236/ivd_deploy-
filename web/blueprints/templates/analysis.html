@@ -2303,6 +2303,231 @@ function parseCoolingLine500_1C(line) {
     return { cmd: '1C', addr, status, pwm: pwmPct, coolState, tecVolt, tecCurr, pumpSpeed: pumpStr, series: 'SMART500', raw: match[0] };
 }
 
+
+// ========== 加注针监测数据解析 ==========
+function hexToSigned16(hexStr) {
+    const val = parseInt(hexStr, 16);
+    if (isNaN(val)) return 0;
+    return val > 0x7FFF ? val - 0x10000 : val;
+}
+
+function parseNeedleLine(line, series) {
+    // Match: <addr> BX/CX/DX/EX 80 XX XX XX XX XX
+    const match = line.match(/<([0-9A-Fa-f]+-[0-9A-Fa-f]+)>\s+([BCDE])([0-3])\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})/);
+    if (!match) return null;
+    const addr = match[1];
+    const cmdType = match[2]; // B/C/D/E
+    const cmdNum = match[3]; // 0/1/2/3
+    const cmd = cmdType + cmdNum;
+    const ok = match[4] === '80';
+    const status = ok ? '查询成功' : '查询失败';
+    const b1 = match[5] + match[6]; // 2-byte value 1
+    const b2 = match[7] + match[8]; // 2-byte value 2
+    const b3 = match[9] + match[10]; // 2-byte value 3
+    const v1 = parseInt(b1, 16);
+    const v2 = parseInt(b2, 16);
+    const v3 = hexToSigned16(b3); // signed for E command difference
+
+    // Determine needle type
+    let needleType = '未知';
+    if (series === 'SMART6500') {
+        if (addr === '00-98') needleType = '样本针';
+        else if (addr === '00-A0' || addr === '00-a0') {
+            needleType = cmdNum === '1' ? '试剂针1' : cmdNum === '2' ? '试剂针2' : cmdNum === '3' ? '试剂针3' : '试剂针';
+        }
+    } else {
+        if (addr === '00-98') {
+            needleType = cmdNum === '0' ? '样本针' : '试剂针';
+        }
+    }
+
+    let fields = {};
+    if (!ok) {
+        fields = { v1: '--', v2: '--', v3: '--', desc: '查询失败，数据无效' };
+    } else if (cmdType === 'B') {
+        fields = {
+            label1: '第1次接触位置', val1: v1 + ' (0x' + b1 + ')',
+            label2: '确认液位位置', val2: v2 + ' (0x' + b2 + ')',
+            label3: '差值', val3: v3 + ' (0x' + b3 + ')',
+            desc: '探液高度值监测'
+        };
+    } else if (cmdType === 'C') {
+        fields = {
+            label1: '吸液前液位', val1: v1 + ' (0x' + b1 + ')',
+            label2: '吸液后液位', val2: v2 + ' (0x' + b2 + ')',
+            label3: '脱离后液位', val3: v3 + ' (0x' + b3 + ')',
+            desc: '脱离液面采样值'
+        };
+    } else if (cmdType === 'D') {
+        fields = {
+            label1: '采样总次数', val1: v1 + ' (0x' + b1 + ')',
+            label2: 'SORT过滤次数', val2: v2 + ' (0x' + b2 + ')',
+            label3: '静态过滤次数', val3: v3 + ' (0x' + b3 + ')',
+            desc: '过滤算法采样点数'
+        };
+    } else if (cmdType === 'E') {
+        fields = {
+            label1: '下行行程', val1: v1 + ' (0x' + b1 + ')',
+            label2: '上复位行程', val2: v2 + ' (0x' + b2 + ')',
+            label3: '行程差值', val3: v3 + ' (0x' + b3 + ')',
+            desc: '加注针探液行程监测'
+        };
+    }
+
+    return { cmd, cmdType, addr, status, ok, needleType, fields, series, raw: match[0] };
+}
+
+function analyzeNeedleAbnormal(parsed, series) {
+    if (!parsed || !parsed.ok) return { abnormal: false, reason: '' };
+    if (parsed.cmdType !== 'E') return { abnormal: false, reason: '' };
+
+    const diff = parsed.fields.val3;
+    const diffNum = parseInt(diff);
+    if (isNaN(diffNum)) return { abnormal: false, reason: '' };
+
+    // Sample needle: normal -10 to 0, abnormal if < -30
+    // Reagent needle: normal -30 to 0, abnormal if < -100
+    if (parsed.needleType === '样本针') {
+        if (diffNum < -30) return { abnormal: true, level: '严重', reason: `样本针行程差值${diffNum} < -30，超过1mm误差阈值` };
+        if (diffNum < -10) return { abnormal: true, level: '警告', reason: `样本针行程差值${diffNum} < -10，超出正常范围` };
+        return { abnormal: false, reason: `样本针行程差值${diffNum}在正常范围(-10~0)` };
+    } else {
+        if (diffNum < -100) return { abnormal: true, level: '严重', reason: `试剂针行程差值${diffNum} < -100，探液异常` };
+        if (diffNum < -30) return { abnormal: true, level: '警告', reason: `试剂针行程差值${diffNum} < -30，超出正常范围` };
+        return { abnormal: false, reason: `试剂针行程差值${diffNum}在正常范围(-30~0)` };
+    }
+}
+
+function groupNeedleData(lines, needleCategory, series) {
+    const isSmart6500 = series === 'SMART6500';
+    const groups = [];
+    let currentGroup = null;
+
+    lines.forEach((line, idx) => {
+        const parsed = parseNeedleLine(line, series);
+        if (!parsed) return;
+
+        let isTarget = false;
+        if (needleCategory === 'sample') {
+            if (isSmart6500) {
+                isTarget = parsed.addr === '00-98' && parsed.cmd[1] === '1';
+            } else {
+                isTarget = parsed.addr === '00-98' && parsed.cmd[1] === '0';
+            }
+        } else if (needleCategory === 'reagent') {
+            if (isSmart6500) {
+                isTarget = (parsed.addr === '00-A0' || parsed.addr === '00-a0') && parsed.cmd[1] !== '0';
+            } else {
+                isTarget = parsed.addr === '00-98' && parsed.cmd[1] === '1';
+            }
+        }
+
+        if (!isTarget) return;
+
+        if (parsed.cmdType === 'B') {
+            if (currentGroup) groups.push(currentGroup);
+            currentGroup = {
+                lineNum: idx + 1,
+                needleType: parsed.needleType,
+                commands: [parsed],
+                abnormal: null
+            };
+        } else if (currentGroup) {
+            if (parsed.cmd[1] === currentGroup.commands[0].cmd[1]) {
+                currentGroup.commands.push(parsed);
+            }
+        }
+    });
+
+    if (currentGroup) groups.push(currentGroup);
+
+    groups.forEach(g => {
+        const eCmd = g.commands.find(c => c.cmdType === 'E');
+        if (eCmd) {
+            g.abnormal = analyzeNeedleAbnormal(eCmd, series);
+        }
+    });
+
+    return groups;
+}
+
+function renderNeedleGroups(groups, needleCategory) {
+    if (groups.length === 0) {
+        const icon = needleCategory === 'sample' ? 'fa-vial' : 'fa-flask';
+        const title = needleCategory === 'sample' ? '样本针' : '试剂针';
+        return '<div style="text-align:center;padding:40px 20px;color:#94a3b8;"><i class="fas ' + icon + '" style="font-size:2.5rem;opacity:0.3;margin-bottom:12px;"></i><div style="font-size:1rem;font-weight:600;">未找到' + title + '加注针监测数据</div><div style="margin-top:6px;font-size:0.8rem;">未检测到B/C/D/E命令序列</div></div>';
+    }
+
+    const completeGroups = groups.filter(g => g.commands.length >= 4);
+    const abnormalGroups = groups.filter(g => g.abnormal && g.abnormal.abnormal);
+
+    let html = '';
+    html += '<div style="background:linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);border-left:3px solid #f59e0b;border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.85rem;color:#475569;">';
+    html += '<i class="fas fa-syringe" style="margin-right:6px;"></i>加注针监测: 共 <strong>' + groups.length + '</strong> 组监测周期';
+    if (completeGroups.length < groups.length) {
+        html += '，<span style="color:#f59e0b;">不完整' + (groups.length - completeGroups.length) + '组</span>';
+    }
+    if (abnormalGroups.length > 0) {
+        html += '，<span style="color:#dc2626;font-weight:700;">异常' + abnormalGroups.length + '组</span>';
+    } else if (completeGroups.length > 0) {
+        html += '，<span style="color:#16a34a;font-weight:600;">全部正常</span>';
+    }
+    html += '</div>';
+
+    html += '<div style="max-height:calc(95vh - 220px);overflow-y:auto;">';
+    const displayGroups = groups.slice(0, MAX_MODAL_DISPLAY);
+    displayGroups.forEach((g, i) => {
+        const isAbnormal = g.abnormal && g.abnormal.abnormal;
+        const borderColor = isAbnormal ? (g.abnormal.level === '严重' ? '#dc2626' : '#f59e0b') : '#e2e8f0';
+        const bgColor = isAbnormal ? '#fef2f2' : '#f8fafc';
+
+        html += '<div style="margin:8px 0;background:white;border-radius:8px;border:1px solid ' + borderColor + ';box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:' + bgColor + ';border-bottom:1px solid ' + borderColor + ';">';
+        html += '<span style="font-weight:600;color:#334155;font-size:0.85rem;"><i class="fas fa-syringe" style="margin-right:4px;color:#6366f1;"></i>' + escapeHtml(g.needleType) + ' - 监测周期 #' + (i + 1) + '</span>';
+        if (isAbnormal) {
+            html += '<span style="color:#dc2626;font-weight:700;font-size:0.78rem;background:#fee2e2;padding:2px 8px;border-radius:10px;">' + g.abnormal.level + '</span>';
+        } else if (g.commands.length >= 4) {
+            html += '<span style="color:#16a34a;font-weight:600;font-size:0.78rem;background:#dcfce7;padding:2px 8px;border-radius:10px;">正常</span>';
+        }
+        html += '</div>';
+
+        g.commands.forEach((cmd, ci) => {
+            const cmdColors = { 'B': '#6366f1', 'C': '#0ea5e9', 'D': '#10b981', 'E': '#f59e0b' };
+            const cmdColor = cmdColors[cmd.cmdType] || '#64748b';
+            html += '<div style="padding:6px 12px;border-bottom:1px solid #f1f5f9;">';
+            html += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px;">';
+            html += '<span style="background:' + cmdColor + ';color:white;font-weight:600;font-size:0.72rem;padding:1px 6px;border-radius:3px;font-family:monospace;">' + cmd.cmd + '</span>';
+            html += '<span style="color:#94a3b8;font-size:0.72rem;">L' + (g.lineNum + ci) + '</span>';
+            html += '<span style="color:' + (cmd.ok ? '#16a34a' : '#dc2626') + ';font-size:0.72rem;">' + cmd.status + '</span>';
+            html += '</div>';
+            html += '<div style="font-family:monospace;font-size:0.78rem;color:#64748b;margin-bottom:4px;white-space:pre-wrap;word-break:break-word;">' + escapeHtml(cmd.raw) + '</div>';
+            if (cmd.ok && cmd.fields && cmd.fields.desc) {
+                html += '<div style="display:grid;grid-template-columns:110px 1fr;gap:2px 8px;font-size:0.78rem;line-height:1.6;">';
+                html += '<span style="color:#94a3b8;">说明:</span><span style="color:#64748b;">' + escapeHtml(cmd.fields.desc) + '</span>';
+                if (cmd.fields.label1) html += '<span style="color:#94a3b8;">' + escapeHtml(cmd.fields.label1) + ':</span><span style="color:#334155;font-weight:500;">' + escapeHtml(String(cmd.fields.val1)) + '</span>';
+                if (cmd.fields.label2) html += '<span style="color:#94a3b8;">' + escapeHtml(cmd.fields.label2) + ':</span><span style="color:#334155;font-weight:500;">' + escapeHtml(String(cmd.fields.val2)) + '</span>';
+                if (cmd.fields.label3) html += '<span style="color:#94a3b8;">' + escapeHtml(cmd.fields.label3) + ':</span><span style="color:#334155;font-weight:500;">' + escapeHtml(String(cmd.fields.val3)) + '</span>';
+                html += '</div>';
+            } else if (!cmd.ok) {
+                html += '<div style="font-size:0.78rem;color:#dc2626;">查询失败，数据无效</div>';
+            }
+            html += '</div>';
+        });
+
+        if (isAbnormal) {
+            html += '<div style="padding:6px 12px;background:#fee2e2;border-top:1px solid #fecaca;">';
+            html += '<span style="color:#dc2626;font-weight:600;font-size:0.8rem;"><i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i>' + escapeHtml(g.abnormal.reason) + '</span>';
+            html += '</div>';
+        }
+
+        html += '</div>';
+    });
+    html += '</div>';
+
+    return html;
+}
+
+
 async function openFaultModal(type) {
     if (!currentFileName) { alert('请先选择一个文件'); return; }
     const config = FAULT_KEYWORDS[type];
@@ -2411,7 +2636,6 @@ async function openFaultModal(type) {
         modal.style.display = 'flex';
         return;
     }
-
     const matches = [];
     const lowerKeywords = config.keywords.map(k => k.toLowerCase());
     lines.forEach((line, idx) => {
@@ -2423,12 +2647,31 @@ async function openFaultModal(type) {
             }
         }
     });
-    document.getElementById('modalTitle').innerHTML = `<i class="fas ${config.icon}" style="margin-right:8px;color:${config.color};"></i>${config.title} - ${escapeHtml(currentFileName)} <span style="font-size:0.8rem;color:#64748b;">(${matches.length}条匹配)</span>`;
+
+    let needleHtml = '';
+    let needleCount = 0;
+    if (type === 'sample' || type === 'reagent') {
+        const deviceModel = (_embeddedData && _embeddedData.model) || '';
+        const series = deviceModel.toUpperCase().includes('6500') ? 'SMART6500' : 'SMART500';
+        const needleGroups = groupNeedleData(lines, type, series);
+        needleCount = needleGroups.length;
+        needleHtml = renderNeedleGroups(needleGroups, type);
+    }
+
+    document.getElementById('modalTitle').innerHTML = `<i class="fas ${config.icon}" style="margin-right:8px;color:${config.color};"></i>${config.title} - ${escapeHtml(currentFileName)} <span style="font-size:0.8rem;color:#64748b;">(${matches.length}条关键词${needleCount > 0 ? ' | ' + needleCount + '组加注针监测' : ''})</span>`;
     let html = '';
+    if (needleHtml) {
+        html += needleHtml;
+        if (matches.length > 0) {
+            html += '<div style="margin:12px 0 8px;text-align:center;color:#94a3b8;font-size:0.8rem;"><i class="fas fa-grip-lines" style="margin-right:4px;"></i>以下为关键词匹配记录</div>';
+        }
+    }
     if (matches.length === 0) {
-        html = `<div style="text-align:center;padding:60px 20px;color:#94a3b8;"><i class="fas ${config.icon}" style="font-size:3rem;opacity:0.3;margin-bottom:16px;"></i><div style="font-size:1.1rem;font-weight:600;">未找到${config.title}相关记录</div><div style="margin-top:8px;font-size:0.85rem;">搜索关键词: ${config.keywords.join(', ')}</div></div>`;
+        if (!needleHtml) {
+            html = `<div style="text-align:center;padding:60px 20px;color:#94a3b8;"><i class="fas ${config.icon}" style="font-size:3rem;opacity:0.3;margin-bottom:16px;"></i><div style="font-size:1.1rem;font-weight:600;">未找到${config.title}相关记录</div><div style="margin-top:8px;font-size:0.85rem;">搜索关键词: ${config.keywords.join(', ')}</div></div>`;
+        }
     } else {
-        html = `<div style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);border-left:3px solid ${config.color};border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.85rem;color:#475569;"><i class="fas fa-info-circle" style="margin-right:6px;"></i>共找到 <strong style="color:${config.color};">${matches.length}</strong> 条${config.title}相关记录${matches.length > MAX_MODAL_DISPLAY ? `，当前显示前${MAX_MODAL_DISPLAY}条` : ''}</div>`;
+        html += `<div style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);border-left:3px solid ${config.color};border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.85rem;color:#475569;"><i class="fas fa-info-circle" style="margin-right:6px;"></i>共找到 <strong style="color:${config.color};">${matches.length}</strong> 条关键词匹配记录${matches.length > MAX_MODAL_DISPLAY ? `，当前显示前${MAX_MODAL_DISPLAY}条` : ''}</div>`;
         html += '<div style="max-height:calc(95vh - 160px);overflow-y:auto;">';
         const kwRegex = new RegExp('(' + config.keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');
         matches.slice(0, MAX_MODAL_DISPLAY).forEach((m, i) => {
