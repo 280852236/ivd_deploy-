@@ -2501,9 +2501,22 @@ function renderNeedleGroups(items, needleCategory) {
             ruleText = '查询失败，数据无效';
             ruleColor = '#dc2626';
         } else if (item.isReturn) {
-            const retMatch = item.text.match(/<[\dA-Fa-f-]+>\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})/);
+            const retMatch = item.text.match(/<[\dA-Fa-f-]+>\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})/);
             if (retMatch) {
-                ruleText = '返回码:' + retMatch[1] + ' | 状态:' + retMatch[2] + ' | 数据:' + retMatch[3] + retMatch[4] + ' ' + retMatch[5] + retMatch[6] + ' ' + retMatch[7];
+                const retCmd = retMatch[1].toUpperCase();
+                if (retCmd === '0C' && retMatch[8]) {
+                    const height = parseInt(retMatch[3] + retMatch[4], 16);
+                    const staticVal = parseInt(retMatch[5] + retMatch[6], 16);
+                    const diff = parseInt(retMatch[7] + retMatch[8], 16);
+                    ruleText = '样本针返回 | 探液高度:' + height + ' (0x' + retMatch[3] + retMatch[4] + ') | 探液静态值:' + staticVal + ' (0x' + retMatch[5] + retMatch[6] + ') | 液位探测差值:' + diff + ' (0x' + retMatch[7] + retMatch[8] + ')';
+                } else if (retCmd === '0D' && retMatch[8]) {
+                    const height = parseInt(retMatch[3] + retMatch[4], 16);
+                    const staticVal = parseInt(retMatch[5] + retMatch[6], 16);
+                    const diff = parseInt(retMatch[7] + retMatch[8], 16);
+                    ruleText = '试剂针返回 | 探液高度:' + height + ' (0x' + retMatch[3] + retMatch[4] + ') | 探液静态值:' + staticVal + ' (0x' + retMatch[5] + retMatch[6] + ') | 液位探测差值:' + diff + ' (0x' + retMatch[7] + retMatch[8] + ')';
+                } else {
+                    ruleText = '返回码:' + retMatch[1] + ' | 数据:' + retMatch.slice(2).join(' ');
+                }
             } else {
                 ruleText = '设备返回响应';
             }
@@ -2538,18 +2551,19 @@ async function openFaultModal(type) {
     if (!currentFileName) { alert('请先选择一个文件'); return; }
     const config = FAULT_KEYWORDS[type];
     if (!config) return;
-    let fullText = _fullFileContent || getCurrentContent();
+    let fullText = '';
+    try {
+        const resp = await fetch(`/api/analysis/${ANALYSIS_ID}/file?name=${encodeURIComponent(currentFileName)}`);
+        if (resp.ok) {
+            const data = await resp.json();
+            fullText = data.content || '';
+            _fullFileContent = fullText;
+        }
+    } catch(e) {}
     if (!fullText || fullText.length < 10) {
-        try {
-            const resp = await fetch(`/api/analysis/${ANALYSIS_ID}/file?name=${encodeURIComponent(currentFileName)}`);
-            if (resp.ok) {
-                const data = await resp.json();
-                fullText = data.content || '';
-                _fullFileContent = fullText;
-            }
-        } catch(e) {}
-        if (!fullText || fullText.length < 10) { alert('无法获取文件内容'); return; }
+        fullText = _fullFileContent || getCurrentContent();
     }
+    if (!fullText || fullText.length < 10) { alert('无法获取文件内容'); return; }
     const lines = fullText.split('\n');
     const modal = document.getElementById('fullModal');
 
