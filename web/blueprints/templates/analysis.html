@@ -2454,6 +2454,7 @@ function renderNeedleGroups(items, needleCategory) {
     const abnormalItems = items.filter(i => i.abnormal && i.abnormal.abnormal);
     const cmdItems = items.filter(i => !i.isReturn);
     const cycleCount = items.filter(i => i.parsed && i.parsed.cmdType === 'B').length;
+    const truncated = items.length > MAX_MODAL_DISPLAY;
 
     let html = '';
     html += '<div style="background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);border-left:3px solid #f59e0b;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.82rem;color:#475569;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
@@ -2464,23 +2465,28 @@ function renderNeedleGroups(items, needleCategory) {
     } else if (cmdItems.length > 0) {
         html += '<span style="color:#16a34a;font-weight:600;">✓ 全部正常</span>';
     }
+    if (truncated) {
+        html += '<span style="color:#f59e0b;font-weight:600;">⚠ 仅显示前' + MAX_MODAL_DISPLAY + '行</span>';
+    }
     html += '</div>';
 
     html += '<div style="max-height:calc(95vh - 200px);overflow-y:auto;">';
     const displayItems = items.slice(0, MAX_MODAL_DISPLAY);
     let abnIdx = 0;
-    let cycleNum = 0;
+    let cycleNums = {};
     displayItems.forEach((item) => {
         const isAbn = item.abnormal && item.abnormal.abnormal;
         const isCycleStart = item.parsed && item.parsed.cmdType === 'B';
         const cleanText = item.text.replace(/\s+\d+\s*$/, '');
 
         if (isCycleStart) {
-            cycleNum++;
-            if (cycleNum > 1) {
-                html += '<div style="height:10px;"></div>';
+            const needleLabel = item.parsed.needleType || '加注针';
+            cycleNums[needleLabel] = (cycleNums[needleLabel] || 0) + 1;
+            const isFirst = Object.keys(cycleNums).length === 1 && cycleNums[needleLabel] === 1;
+            if (!isFirst) {
+                html += '<div style="height:8px;"></div>';
             }
-            html += '<div style="margin:2px 0 4px;font-size:0.72rem;color:#94a3b8;font-weight:600;letter-spacing:0.5px;">── 监测周期 #' + cycleNum + ' ──</div>';
+            html += '<div style="margin:2px 0 4px;font-size:0.72rem;color:#6366f1;font-weight:600;letter-spacing:0.5px;">── ' + escapeHtml(needleLabel) + ' #' + cycleNums[needleLabel] + ' ──</div>';
         }
 
         let ruleText = '';
@@ -2495,7 +2501,12 @@ function renderNeedleGroups(items, needleCategory) {
             ruleText = '查询失败，数据无效';
             ruleColor = '#dc2626';
         } else if (item.isReturn) {
-            ruleText = '设备返回响应';
+            const retMatch = item.text.match(/<[\dA-Fa-f-]+>\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})/);
+            if (retMatch) {
+                ruleText = '返回码:' + retMatch[1] + ' | 状态:' + retMatch[2] + ' | 数据:' + retMatch[3] + retMatch[4] + ' ' + retMatch[5] + retMatch[6] + ' ' + retMatch[7];
+            } else {
+                ruleText = '设备返回响应';
+            }
             ruleColor = '#94a3b8';
         }
 
@@ -2514,6 +2525,9 @@ function renderNeedleGroups(items, needleCategory) {
         }
         html += '</div>';
     });
+    if (truncated) {
+        html += '<div style="text-align:center;padding:10px;color:#94a3b8;font-size:0.8rem;">⋯ 共 ' + items.length + ' 行，仅显示前 ' + MAX_MODAL_DISPLAY + ' 行 ⋯</div>';
+    }
     html += '</div>';
 
     return html;
