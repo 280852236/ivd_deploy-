@@ -2313,8 +2313,8 @@ function hexToSigned16(hexStr) {
 
 function parseNeedleLine(line, series) {
     // Match: <addr> BX/CX/DX/EX 80 XX XX XX XX XX
-    const match = line.match(/<([0-9A-Fa-f]+-[0-9A-Fa-f]+)>\s+([BCDE])([0-3])\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})/);
-    if (!match || !match[10]) return null;
+    const match = line.match(/<([0-9A-Fa-f]+-[0-9A-Fa-f]+)>\s+([BCDE])([0-3])\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})(?:\s+([\dA-Fa-f]{2}))?/);
+    if (!match) return null;
     const addr = match[1];
     const cmdType = match[2]; // B/C/D/E
     const cmdNum = match[3]; // 0/1/2/3
@@ -2323,7 +2323,7 @@ function parseNeedleLine(line, series) {
     const status = ok ? '查询成功' : '查询失败';
     const b1 = match[5] + match[6]; // 2-byte value 1
     const b2 = match[7] + match[8]; // 2-byte value 2
-    const b3 = match[9] + match[10]; // 2-byte value 3
+    const b3 = match[10] ? (match[9] + match[10]) : match[9]; // 2-byte value 3 (6th byte optional)
     const v1 = parseInt(b1, 16);
     const v2 = parseInt(b2, 16);
     const v3 = hexToSigned16(b3); // signed for E command difference
@@ -2453,29 +2453,38 @@ function renderNeedleGroups(items, needleCategory) {
 
     const abnormalItems = items.filter(i => i.abnormal && i.abnormal.abnormal);
     const cmdItems = items.filter(i => !i.isReturn);
+    const cycleCount = items.filter(i => i.parsed && i.parsed.cmdType === 'B').length;
 
     let html = '';
-    html += '<div style="background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);border-left:3px solid #f59e0b;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:0.82rem;color:#475569;">';
-    html += '<i class="fas fa-syringe" style="margin-right:5px;"></i>加注针监测: 共 <strong>' + items.length + '</strong> 行';
+    html += '<div style="background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);border-left:3px solid #f59e0b;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:0.82rem;color:#475569;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">';
+    html += '<i class="fas fa-syringe" style="color:#f59e0b;"></i>';
+    html += '<span>加注针监测: <strong>' + cycleCount + '</strong> 个监测周期, <strong>' + items.length + '</strong> 行</span>';
     if (abnormalItems.length > 0) {
-        html += '，<span style="color:#dc2626;font-weight:700;cursor:pointer;text-decoration:underline;" onclick="var e=document.getElementById(\'needle-abn-0\');if(e)e.scrollIntoView({behavior:\'smooth\',block:\'center\'})">异常' + abnormalItems.length + '条(点击定位)</span>';
+        html += '<span style="color:#dc2626;font-weight:700;cursor:pointer;text-decoration:underline;" onclick="var e=document.getElementById(\'needle-abn-0\');if(e)e.scrollIntoView({behavior:\'smooth\',block:\'center\'})">⚠ 异常' + abnormalItems.length + '条(点击定位)</span>';
     } else if (cmdItems.length > 0) {
-        html += '，<span style="color:#16a34a;font-weight:600;">全部正常</span>';
+        html += '<span style="color:#16a34a;font-weight:600;">✓ 全部正常</span>';
     }
     html += '</div>';
 
     html += '<div style="max-height:calc(95vh - 200px);overflow-y:auto;">';
     const displayItems = items.slice(0, MAX_MODAL_DISPLAY);
     let abnIdx = 0;
+    let cycleNum = 0;
     displayItems.forEach((item) => {
         const isAbn = item.abnormal && item.abnormal.abnormal;
+        const isCycleStart = item.parsed && item.parsed.cmdType === 'B';
         const cleanText = item.text.replace(/\s+\d+\s*$/, '');
-        const border = isAbn ? '1px solid ' + (item.abnormal.level === '严重' ? '#dc2626' : '#f59e0b') : '1px solid #e2e8f0';
-        const bg = isAbn ? '#fef2f2' : '#fff';
-        const idAttr = isAbn ? ' id="needle-abn-' + abnIdx + '"' : '';
-        if (isAbn) abnIdx++;
+
+        if (isCycleStart) {
+            cycleNum++;
+            if (cycleNum > 1) {
+                html += '<div style="height:10px;"></div>';
+            }
+            html += '<div style="margin:2px 0 4px;font-size:0.72rem;color:#94a3b8;font-weight:600;letter-spacing:0.5px;">── 监测周期 #' + cycleNum + ' ──</div>';
+        }
 
         let ruleText = '';
+        let ruleColor = '#64748b';
         if (item.parsed && item.parsed.ok && item.parsed.fields && item.parsed.fields.desc) {
             const f = item.parsed.fields;
             ruleText = f.desc;
@@ -2484,18 +2493,24 @@ function renderNeedleGroups(items, needleCategory) {
             if (f.label3) ruleText += ' | ' + f.label3 + ': ' + f.val3;
         } else if (item.parsed && !item.parsed.ok) {
             ruleText = '查询失败，数据无效';
+            ruleColor = '#dc2626';
         } else if (item.isReturn) {
             ruleText = '设备返回响应';
+            ruleColor = '#94a3b8';
         }
 
-        html += '<div' + idAttr + ' style="padding:4px 10px;margin:2px 0;background:' + bg + ';border:' + border + ';border-radius:4px;font-family:monospace;font-size:0.8rem;line-height:1.5;white-space:pre-wrap;word-break:break-word;">';
+        const borderLeft = item.parsed ? ({ 'B': '3px solid #6366f1', 'C': '3px solid #0ea5e9', 'D': '3px solid #10b981', 'E': '3px solid #f59e0b' }[item.parsed.cmdType] || '3px solid #e2e8f0') : '3px solid #94a3b8';
+        const bg = isAbn ? '#fef2f2' : (item.isReturn ? '#f9fafb' : '#fff');
+        const idAttr = isAbn ? ' id="needle-abn-' + abnIdx + '"' : '';
+        if (isAbn) abnIdx++;
+
+        html += '<div' + idAttr + ' style="padding:4px 10px;margin:2px 0;background:' + bg + ';border-left:' + borderLeft + ';border-radius:0 4px 4px 0;font-family:monospace;font-size:0.8rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;">';
         html += escapeHtml(cleanText);
         if (ruleText) {
-            const ruleColor = isAbn ? '#dc2626' : '#64748b';
-            html += '  <span style="color:' + ruleColor + ';font-family:sans-serif;font-size:0.75rem;">' + escapeHtml(ruleText) + '</span>';
+            html += '  <span style="color:' + (isAbn ? '#dc2626' : ruleColor) + ';font-family:sans-serif;font-size:0.74rem;">' + escapeHtml(ruleText) + '</span>';
         }
         if (isAbn) {
-            html += '  <span style="color:#dc2626;font-weight:600;font-family:sans-serif;font-size:0.75rem;">⚠ ' + escapeHtml(item.abnormal.reason) + '</span>';
+            html += '  <span style="color:#dc2626;font-weight:600;font-family:sans-serif;font-size:0.74rem;">⚠ ' + escapeHtml(item.abnormal.reason) + '</span>';
         }
         html += '</div>';
     });
