@@ -2313,7 +2313,7 @@ function hexToSigned16(hexStr) {
 
 function parseNeedleLine(line, series) {
     // Match: <addr> BX/CX/DX/EX 80 XX XX XX XX XX
-    const match = line.match(/<([0-9A-Fa-f]+-[0-9A-Fa-f]+)>\s+([BCDE])([0-3])\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})(?:\s+([\dA-Fa-f]{2}))?/);
+    const match = line.match(/<([0-9A-Fa-f]+-[0-9A-Fa-f]+)>\s+([BCDE])([0-3])\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})/);
     if (!match) return null;
     const addr = match[1];
     const cmdType = match[2]; // B/C/D/E
@@ -2323,7 +2323,7 @@ function parseNeedleLine(line, series) {
     const status = ok ? '查询成功' : '查询失败';
     const b1 = match[5] + match[6]; // 2-byte value 1
     const b2 = match[7] + match[8]; // 2-byte value 2
-    const b3 = match[10] ? (match[9] + match[10]) : match[9]; // 2-byte value 3 (6th byte optional)
+    const b3 = match[9] + match[10]; // 2-byte value 3
     const v1 = parseInt(b1, 16);
     const v2 = parseInt(b2, 16);
     const v3 = hexToSigned16(b3); // signed for E command difference
@@ -2383,7 +2383,7 @@ function analyzeNeedleAbnormal(parsed, series) {
     if (parsed.cmdType === 'B') {
         var diff = parseInt(parsed.fields.val3);
         if (!isNaN(diff)) {
-            if (diff > 60) return { abnormal: true, level: '严重', reason: '探液高度差值' + diff + ' > 60，探液异常' };
+            if (diff > 60) return { abnormal: true, level: '严重', reason: '探液高度差值' + diff + ' > 60，可能存在气泡或干扰导致没有连续探液成功' };
             if (diff > 40) return { abnormal: true, level: '警告', reason: '探液高度差值' + diff + ' > 40，可能空吸' };
         }
     }
@@ -2410,7 +2410,7 @@ function analyzeNeedleAbnormal(parsed, series) {
         var diff = parseInt(parsed.fields.val3);
         if (!isNaN(diff)) {
             var absDiff = Math.abs(diff);
-            if (absDiff > 20) return { abnormal: true, level: '严重', reason: '行程差值' + diff + '，绝对值>20，探液异常' };
+            if (absDiff > 20) return { abnormal: true, level: '严重', reason: '行程差值' + diff + '，绝对值>20，针上下行程异常' };
         }
     }
 
