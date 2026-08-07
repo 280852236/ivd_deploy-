@@ -162,7 +162,23 @@ def analyze_text(text: str, rules: List[Dict], series: str = '', model: str = ''
         if result['matched']:
             keyword = '样本空吸' if result['type'] == 'sample' else '试剂空吸'
             conditions_str = '、'.join(result['conditions'])
-            advice_text = f"检测到 {len(result['conditions'])} 个异常条件：{conditions_str}。建议检查样本/试剂供应情况和管路连接。"
+            advice_parts = []
+            if '电路异常' in result['conditions']:
+                advice_parts.append('检查通信线路、探液电路板以及主控板芯片')
+            import re as _re
+            _init_m = _re.search(r'液位初值[：:]\s*(\d+)', ln)
+            if _init_m:
+                _init_v = int(_init_m.group(1))
+                if _init_v == 0:
+                    advice_parts.append('检查探液电路板')
+            _diff_m = _re.search(r'液位差值[：:]\s*(\d+)', ln)
+            if _diff_m:
+                _diff_v = int(_diff_m.group(1))
+                if _diff_v < 20 or _diff_v == 6555:
+                    advice_parts.append('没有连续探液成功，请检查气泡或者是否有干扰')
+            if not advice_parts:
+                advice_parts.append('检查样本/试剂供应情况和管路连接')
+            advice_text = f"检测到 {len(result['conditions'])} 个异常条件：{conditions_str}。建议" + '；'.join(advice_parts) + "。"
             matched.append({
                 'type': 'keyword_match',
                 'keywords': [keyword],
