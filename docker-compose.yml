@@ -1,30 +1,107 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "3"
+
+x-web-env: &web-env
+  DB_HOST: postgres
+  REDIS_HOST: redis
+  GO_PARSER_HOST: go-parser
+  DB_HOST_IP: 172.28.0.10
+  REDIS_HOST_IP: 172.28.0.11
+  GO_PARSER_HOST_IP: 172.28.0.12
+  DB_PORT: "5432"
+  DB_USER: ivd_user
+  DB_PASSWORD: ${DB_PASSWORD:-ivd_pass}
+  DB_NAME: ivd_fault_db
+  REDIS_URL: redis://redis:6379/0
+  REDIS_URL_IP: redis://172.28.0.11:6379/0
+  GO_PARSER_URL: http://go-parser:8082/parse
+  GO_PARSER_URL_IP: http://172.28.0.12:8082/parse
+  SECRET_KEY: ${SECRET_KEY:-your-secret-key}
+  ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+  SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-super2026}
+  ANALYSIS_TTL_HOURS: "2"
+  MAX_CONTENT_LENGTH: "209715200"
+  UPLOAD_DIR: /app/uploads
+
+x-web-common: &web-common
+  build:
+    context: ./web
+    dockerfile: Dockerfile
+  logging: *default-logging
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    go-parser:
+      condition: service_started
+  volumes:
+    - uploads:/app/uploads
+  restart: unless-stopped
+
 services:
   postgres:
     image: postgres:15
+    logging: *default-logging
     environment:
       POSTGRES_USER: ivd_user
-      POSTGRES_PASSWORD: ivd_pass
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ivd_pass}
       POSTGRES_DB: ivd_fault_db
+    command: >
+      postgres
+      -c random_page_cost=1.1
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=128MB
+      -c checkpoint_completion_target=0.9
+      -c effective_io_concurrency=200
+      -c max_connections=100
+      -c shared_preload_libraries=pg_stat_statements
+      -c log_min_duration_statement=1000
+      -c autovacuum_naptime=30s
+      -c max_wal_size=512MB
+      -c min_wal_size=128MB
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./db/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ivd_user"]
+      test: ["CMD-SHELL", "pg_isready -U ivd_user -d ivd_fault_db"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
     networks:
       ivd_net:
         ipv4_address: 172.28.0.10
 
   redis:
     image: redis:7-alpine
+    logging: *default-logging
+    command: redis-server --appendonly yes --maxmemory 800mb --maxmemory-policy volatile-lru --maxmemory-samples 5 --lazyfree-lazy-eviction yes --lazyfree-lazy-expire yes --rdbcompression yes --rdb-save-incremental-fsync yes
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
     networks:
       ivd_net:
         ipv4_address: 172.28.0.11
@@ -33,12 +110,13 @@ services:
     build:
       context: ./go-parser
       dockerfile: Dockerfile
+    logging: *default-logging
     environment:
       DB_HOST: postgres
       DB_HOST_IP: 172.28.0.10
       DB_PORT: 5432
       DB_USER: ivd_user
-      DB_PASSWORD: ivd_pass
+      DB_PASSWORD: ${DB_PASSWORD:-ivd_pass}
       DB_NAME: ivd_fault_db
       SERVER_PORT: 8082
     depends_on:
@@ -50,118 +128,108 @@ services:
     restart: unless-stopped
 
   web:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
-    command: gunicorn -w 2 -b 0.0.0.0:8081 app:app --access-logfile - --error-logfile -
-    # 不再直接映射端口，由 Nginx 代理
+    <<: *web-common
+    command: gunicorn -w 6 -k gevent -b 0.0.0.0:8081 app:app --preload --keep-alive 5 --access-logfile - --error-logfile - --timeout 120 --graceful-timeout 30 --max-requests 1000 --max-requests-jitter 50
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8081/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2.0'
+        reservations:
+          memory: 512M
     environment:
-      # 服务名配置（优先使用，Docker DNS解析）
-      DB_HOST: postgres
-      REDIS_HOST: redis
-      GO_PARSER_HOST: go-parser
-      # 固定IP配置（fallback，当DNS失败时使用）
-      DB_HOST_IP: 172.28.0.10
-      REDIS_HOST_IP: 172.28.0.11
-      GO_PARSER_HOST_IP: 172.28.0.12
-      # 其他配置
-      DB_PORT: 5432
-      DB_USER: ivd_user
-      DB_PASSWORD: ivd_pass
-      DB_NAME: ivd_fault_db
-      REDIS_URL: redis://redis:6379/0
-      REDIS_URL_IP: redis://172.28.0.11:6379/0
-      GO_PARSER_URL: http://go-parser:8082/parse
-      GO_PARSER_URL_IP: http://172.28.0.12:8082/parse
-      SECRET_KEY: your-secret-key
-      ADMIN_PASSWORD: admin123
-      SUPER_ADMIN_PASSWORD: super2026
-      ANALYSIS_TTL_HOURS: 2
-      MAX_CONTENT_LENGTH: 209715200
-      UPLOAD_DIR: /app/uploads
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      go-parser:
-        condition: service_started
-    volumes:
-      - uploads:/app/uploads
+      <<: *web-env
     networks:
       ivd_net:
         ipv4_address: 172.28.0.13
-    restart: unless-stopped
 
   worker:
-    build:
-      context: ./web
-      dockerfile: Dockerfile
-    command: celery -A celery_app worker --loglevel=info --concurrency=2
+    <<: *web-common
+    command: celery -A celery_app worker --pool=gevent --concurrency=8 --loglevel=info --max-tasks-per-child=500 --heartbeat-interval=30
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A celery_app inspect ping --timeout 5 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
     environment:
-      # 服务名配置（优先使用，Docker DNS解析）
-      DB_HOST: postgres
-      REDIS_HOST: redis
-      GO_PARSER_HOST: go-parser
-      # 固定IP配置（fallback，当DNS失败时使用）
-      DB_HOST_IP: 172.28.0.10
-      REDIS_HOST_IP: 172.28.0.11
-      GO_PARSER_HOST_IP: 172.28.0.12
-      # 其他配置
-      DB_PORT: 5432
-      DB_USER: ivd_user
-      DB_PASSWORD: ivd_pass
-      DB_NAME: ivd_fault_db
-      REDIS_URL: redis://redis:6379/0
-      REDIS_URL_IP: redis://172.28.0.11:6379/0
-      GO_PARSER_URL: http://go-parser:8082/parse
-      GO_PARSER_URL_IP: http://172.28.0.12:8082/parse
-      SECRET_KEY: your-secret-key
-      ADMIN_PASSWORD: admin123
-      SUPER_ADMIN_PASSWORD: super2026
-      ANALYSIS_TTL_HOURS: 2
-      MAX_CONTENT_LENGTH: 209715200
-      UPLOAD_DIR: /app/uploads
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      go-parser:
-        condition: service_started
-    volumes:
-      - uploads:/app/uploads
+      <<: *web-env
     networks:
       ivd_net:
         ipv4_address: 172.28.0.14
+
+  db-backup:
+    image: postgres:15-alpine
+    logging: *default-logging
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: ivd_user
+      DB_PASSWORD: ${DB_PASSWORD:-ivd_pass}
+      DB_NAME: ivd_fault_db
+      KEEP_DAYS: "7"
+    volumes:
+      - ./scripts/db-backup.sh:/usr/local/bin/db-backup.sh:ro
+      - db-backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        chmod +x /usr/local/bin/db-backup.sh
+        echo "0 2 * * * /usr/local/bin/db-backup.sh >> /backups/backup.log 2>&1" > /etc/crontabs/root
+        crond -f -l 2
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      ivd_net:
+        ipv4_address: 172.28.0.21
     restart: unless-stopped
 
   loki:
-    image: grafana/loki:latest
+    image: grafana/loki:2.9.0
+    logging: *default-logging
     ports:
       - "3100:3100"
     volumes:
-      - ./loki-config.yaml:/etc/loki/loki-config.yaml
+      - ./config/loki-config.yaml:/etc/loki/loki-config.yaml
     command: -config.file=/etc/loki/loki-config.yaml
     networks:
       ivd_net:
         ipv4_address: 172.28.0.15
+    restart: unless-stopped
 
   promtail:
-    image: grafana/promtail:latest
+    image: grafana/promtail:2.9.0
+    logging: *default-logging
     volumes:
+      - promtail_data:/promtail
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./promtail-config.yaml:/etc/promtail/promtail-config.yaml
+      - ./config/promtail-config.yaml:/etc/promtail/promtail-config.yaml
     command: -config.file=/etc/promtail/promtail-config.yaml
     networks:
       ivd_net:
         ipv4_address: 172.28.0.16
     depends_on:
       - loki
+    restart: unless-stopped
 
   node-exporter:
     image: prom/node-exporter:latest
+    logging: *default-logging
     command:
       - '--path.rootfs=/host'
       - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)'
@@ -173,15 +241,16 @@ services:
       ivd_net:
         ipv4_address: 172.28.0.17
 
-  # 新增：Nginx 反向代理（支持HTTPS）
   nginx:
-    image: nginx:latest
+    image: nginx:1.25
+    logging: *default-logging
     ports:
-      - "8081:80"               # HTTP端口（重定向到HTTPS）
-      - "8443:443"              # HTTPS端口
+      - "8081:80"
+      - "8443:443"
     volumes:
       - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro  # SSL证书挂载
+      - ./ssl:/etc/nginx/ssl:ro
+      - ./web/static:/app/static:ro
     depends_on:
       - web
     networks:
@@ -189,11 +258,12 @@ services:
         ipv4_address: 172.28.0.20
     restart: unless-stopped
 
-
   prometheus:
     image: prom/prometheus:latest
+    logging: *default-logging
     volumes:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./config/alert_rules.yml:/etc/prometheus/alert_rules.yml
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
@@ -203,13 +273,14 @@ services:
     restart: unless-stopped
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.1.0
+    logging: *default-logging
     ports:
       - "3000:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
       - GF_INSTALL_PLUGINS=grafana-piechart-panel
-      - GF_DEFAULT_LANGUAGE=zh-Hans      # 保留您的汉化设置
+      - GF_DEFAULT_LANGUAGE=zh-Hans
       - GF_USERS_DEFAULT_LANGUAGE=zh-Hans
       - GF_DATE_FORMATS_DEFAULT_TIMEZONE=Asia/Shanghai
       - GF_DATE_FORMATS_FULL_DATE=YYYY-MM-DD HH:mm:ss
@@ -218,19 +289,22 @@ services:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
       - ./grafana/dashboards:/var/lib/grafana/dashboards
-      - ./grafana/grafana.ini:/etc/grafana/grafana.ini   # 可选，保留您的配置文件
+      - ./grafana/grafana.ini:/etc/grafana/grafana.ini
     networks:
       ivd_net:
         ipv4_address: 172.28.0.19
     depends_on:
       - loki
       - prometheus
+    restart: unless-stopped
 
 volumes:
   postgres_data:
   uploads:
   grafana_data:
   prometheus_data:
+  db-backups:
+  promtail_data:
 
 networks:
   ivd_net:

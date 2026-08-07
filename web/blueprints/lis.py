@@ -3,29 +3,46 @@
 """IVD平台 - LIS模块"""
 
 from flask import Blueprint, request, jsonify, session, redirect, url_for, make_response, render_template_string
-import sys
 import re
 from collections import Counter
-def _get_app():
-    return sys.modules['app']
-def _db():
-    return _get_app().db_connection
-def _rts():
-    return _get_app().render_template_string
+import shared
+from shared import api_login_required, api_super_admin_required, login_required
+from PyPDF2 import PdfReader
+import io
+import time
+import logging
 
 lis_bp = Blueprint('lis', __name__)
 
+_VALID_MSG_TYPES = frozenset({'QRY^Q02', 'DSR^Q03', 'ORU^R01', 'ACK^R01', 'ACK^Q03'})
+_INVALID_MSG_TYPES = frozenset({'QCK^Q02', 'DSP^Q031'})
+_VALID_SPECIMEN = frozenset({'Ser', 'Plasma', 'Urine', 'BALF', 'CSF', 'Automated', 'Serum', 'Whole Blood'})
+_VALID_GENDER = frozenset({'M', 'F', 'O', '0', ''})
+
+_RE_ESCAPE_COMBINED = re.compile(r'\[11\]|\[13\]|\[28\]|\\x0[bB]|\\x0[dD]|\\x1[cC]')
+_ESCAPE_MAP = {
+    '[11]': '\x0b', '[13]': '\r', '[28]': '\x1c',
+    '\\x0b': '\x0b', '\\x0B': '\x0b',
+    '\\x0d': '\r', '\\x0D': '\r',
+    '\\x1c': '\x1c', '\\x1C': '\x1c',
+}
+_RE_GARBLED = re.compile(r'[\x00-\x08\x0e-\x0f\x10-\x1a\x1b\x1d-\x1f]')
+_MSH2_CHARS = frozenset('^~\\&')
+_TIMEOUT_TS = 5000
+
 @lis_bp.route('/lis-issues')
+@login_required
 def lis_issues_page():
     series = request.args.get('series', 'SMART').upper()
     model = request.args.get('model', '')
     if series not in ('SMART', 'VENUS'):
         series = 'SMART'
-    return _rts()(_get_app().LIS_ISSUES_HTML, series=series, model=model)
+    return render_template_string(shared.get_template('LIS_ISSUES_HTML'), series=series, model=model)
 
 
 
 @lis_bp.route('/api/lis/parse-log', methods=['POST'])
+@api_login_required
 def lis_parse_log():
     try:
         # ---------- 1. 参数与文件读取 ----------
@@ -47,12 +64,27 @@ def lis_parse_log():
         if 'protocol' in request.files and request.files['protocol'].filename:
             proto_content = request.files['protocol'].read().decode('utf-8', errors='ignore')
         else:
-            with _db()() as conn:
-                cur = conn.cursor()
-                cur.execute('SELECT content FROM lis_protocol_templates WHERE series=%s AND model=%s', (series, model))
-                row = cur.fetchone()
-                if row:
-                    proto_content = row[0]
+            proto_content = None
+            cache_key = f'lis_proto:{series}:{model}'
+            try:
+                r = shared.get_redis()
+                cached = r.get(cache_key)
+                if cached:
+                    proto_content = cached
+            except Exception:
+                pass
+            if not proto_content:
+                with shared.db_connection() as conn:
+                    cur = conn.cursor()
+                    cur.execute('SELECT content FROM lis_protocol_templates WHERE series=%s AND model=%s', (series, model))
+                    row = cur.fetchone()
+                    if row:
+                        proto_content = row[0]
+                        try:
+                            r = shared.get_redis()
+                            r.setex(cache_key, 3600, proto_content)
+                        except Exception:
+                            pass
         if not proto_content:
             return jsonify({'error': '该型号暂无协议模板，请先上传协议文件'}), 400
 
@@ -61,12 +93,7 @@ def lis_parse_log():
         log_content = raw_bytes.decode('utf-8', errors='ignore')
 
         # 转义字符替换（支持 [11], [13], [28] 和 \x0b 等形式）
-        log_content = re.sub(r'\[11\]', '\x0b', log_content)
-        log_content = re.sub(r'\[13\]', '\r', log_content)
-        log_content = re.sub(r'\[28\]', '\x1c', log_content)
-        log_content = re.sub(r'\\x0[bB]', '\x0b', log_content)
-        log_content = re.sub(r'\\x0[dD]', '\r', log_content)
-        log_content = re.sub(r'\\x1[cC]', '\x1c', log_content)
+        log_content = _RE_ESCAPE_COMBINED.sub(lambda m: _ESCAPE_MAP[m.group(0)], log_content)
 
         log_lines_raw = log_content.splitlines()
 
@@ -110,10 +137,10 @@ def lis_parse_log():
             })
 
         # ---------- 5. 常量定义 ----------
-        VALID_MSG_TYPES = {'QRY^Q02', 'DSR^Q03', 'ORU^R01', 'ACK^R01', 'ACK^Q03'}
-        INVALID_MSG_TYPES = {'QCK^Q02', 'DSP^Q031'}
-        VALID_SPECIMEN = {'Ser', 'Plasma', 'Urine', 'BALF', 'CSF', 'Automated', 'Serum', 'Whole Blood'}
-        VALID_GENDER = {'M', 'F', 'O', '0', ''}
+        VALID_MSG_TYPES = _VALID_MSG_TYPES
+        INVALID_MSG_TYPES = _INVALID_MSG_TYPES
+        VALID_SPECIMEN = _VALID_SPECIMEN
+        VALID_GENDER = _VALID_GENDER
 
         # ---------- 6. 解析协议模板（提取消息类型） ----------
         proto_msg_types = set()
@@ -130,6 +157,7 @@ def lis_parse_log():
         line_annotations = []          # 每行的标注列表
         msh10_cache = {}               # 用于交互流程配对: {control_id: [info1, info2, ...]}
         request_records = {}           # 记录请求行：{control_id: [info1, info2, ...]}
+        current_frame_msh10 = None     # 当前帧的MSH-10控制ID
 
         for line_num, raw_line in enumerate(log_lines_raw, 1):
             line = raw_line.rstrip('\r\n')
@@ -148,11 +176,7 @@ def lis_parse_log():
                 issues.append({'type': 'info', 'msg': '帧结束符<FS>存在（非帧首行）'})
 
             # 非法控制字符检查
-            garbled_chars = []
-            for ch in line:
-                code = ord(ch)
-                if code < 0x20 and ch not in ('\t', '\x0b', '\x0d', '\x1c'):
-                    garbled_chars.append(f'0x{code:02X}')
+            garbled_chars = [f'0x{ord(c):02X}' for c in _RE_GARBLED.findall(line[:500])]
             if garbled_chars:
                 garbled_str = ', '.join(garbled_chars[:5])
                 issues.append({'type': 'fail', 'msg': f'非法控制字符: {garbled_str}'})
@@ -181,7 +205,7 @@ def lis_parse_log():
                 # ----- 7.3 MSH 消息头规则 -----
                 if seg_id == 'MSH':
                     msh2 = fields[1] if len(fields) > 1 else ''
-                    if msh2 and not set('^~\\&').issubset(set(msh2)):
+                    if msh2 and not _MSH2_CHARS.issubset(msh2):
                         issues.append({'type': 'warn', 'msg': f'MSH-2应包含^~\\&，实际为"{msh2}"'})
 
                     if len(fields) > 8:
@@ -200,6 +224,7 @@ def lis_parse_log():
                         if not control_id:
                             issues.append({'type': 'warn', 'msg': 'MSH-10控制ID为空'})
                         else:
+                            current_frame_msh10 = control_id
                             m_t = fields[8].strip() if len(fields) > 8 else ''
                             msg_timestamp = None
                             if len(fields) > 6:
@@ -228,8 +253,13 @@ def lis_parse_log():
                     # MSH-12 版本号校验
                     if len(fields) > 11:
                         version = fields[11].strip()
-                        if version and ',' in version:
-                            issues.append({'type': 'warn', 'msg': f'MSH-12版本号使用了逗号分隔，应使用点号，实际为"{version}"'})
+                        if version:
+                            if series == 'SMART':
+                                if ',' not in version:
+                                    issues.append({'type': 'warn', 'msg': f'MSH-12版本号应使用逗号分隔(如2, 3, 1)，实际为"{version}"'})
+                            else:
+                                if ',' in version:
+                                    issues.append({'type': 'warn', 'msg': f'MSH-12版本号使用了逗号分隔，应使用点号，实际为"{version}"'})
 
                     if len(fields) > 17:
                         encoding = fields[17].strip()
@@ -271,8 +301,13 @@ def lis_parse_log():
                                 issues.append({'type': 'fail', 'msg': f'【项目识别失败】DSP-{dsp_idx}项目编号(DSP-3)为空', 'category': '项目识别'})
                             if len(fields) > 3:
                                 project_code = fields[3].strip()
-                                if project_code and not project_code.replace('-', '').replace('_', '').isalnum():
-                                    issues.append({'type': 'warn', 'msg': f'DSP-{dsp_idx}项目编号"{project_code}"含特殊字符', 'category': '数据质量'})
+                                if project_code:
+                                    if series in ('VENUS', 'SMART'):
+                                        if not project_code.isdigit():
+                                            issues.append({'type': 'fail', 'msg': f'【项目识别失败】DSP-{dsp_idx}项目编号(DSP-3)必须为数字，实际为"{project_code}"', 'category': '项目识别'})
+                                    else:
+                                        if not project_code.replace('-', '').replace('_', '').isalnum():
+                                            issues.append({'type': 'warn', 'msg': f'DSP-{dsp_idx}项目编号"{project_code}"含特殊字符', 'category': '数据质量'})
                             if len(fields) > 4:
                                 test_dilution = fields[4].strip()
                                 if not test_dilution:
@@ -301,8 +336,11 @@ def lis_parse_log():
                             issues.append({'type': 'fail', 'msg': 'MSA-1=AR，表示消息被拒绝'})
                     if len(fields) > 2:
                         ack_msg_id = fields[2].strip()
-                        if ack_msg_id and ack_msg_id not in request_records:
-                            issues.append({'type': 'warn', 'msg': f'MSA-2控制ID "{ack_msg_id}" 未找到对应的请求'})
+                        if ack_msg_id:
+                            if current_frame_msh10 and ack_msg_id != current_frame_msh10:
+                                issues.append({'type': 'fail', 'msg': f'MSA-2控制ID "{ack_msg_id}" 与MSH-10控制ID "{current_frame_msh10}" 不匹配'})
+                            elif ack_msg_id not in request_records:
+                                issues.append({'type': 'warn', 'msg': f'MSA-2控制ID "{ack_msg_id}" 未找到对应的请求'})
 
                 # ----- 7.6 QRD 段校验（查询请求） -----
                 elif seg_id == 'QRD':
@@ -360,12 +398,10 @@ def lis_parse_log():
         #   ORU^R01 → ACK^R01  (设备发送结果给LIS，LIS确认)
         # 实现：队列保证顺序，字典索引加速查找，30秒超时
 
-        TIMEOUT_TS = 5000  # YYYYMMDDHHMMSS格式下约30秒的差值
-
-        def ts_ok(ts1, ts2):
+        def _ts_ok(ts1, ts2):
             if ts1 is None or ts2 is None:
                 return True
-            return abs(ts1 - ts2) <= TIMEOUT_TS
+            return abs(ts1 - ts2) <= _TIMEOUT_TS
 
         # 构建队列 + 字典索引（cid → [队列索引]）
         qry_queue = [];  qry_idx = {}   # {cid: [0, 3, 7]}
@@ -404,7 +440,7 @@ def lis_parse_log():
         # 链1: QRY^Q02 → DSR^Q03（字典索引O(1)查找同cid，按队列顺序取第一个未匹配的）
         for i, qry in enumerate(qry_queue):
             for j in dsr_idx.get(qry['cid'], []):
-                if not dsr_matched[j] and ts_ok(qry['ts'], dsr_queue[j]['ts']):
+                if not dsr_matched[j] and _ts_ok(qry['ts'], dsr_queue[j]['ts']):
                     qry_matched[i] = True
                     dsr_matched[j] = True
                     break
@@ -414,7 +450,7 @@ def lis_parse_log():
             if not dsr_matched[j]:
                 continue
             for k in ack_q03_idx.get(dsr['cid'], []):
-                if not ack_q03_matched[k] and ts_ok(dsr['ts'], ack_q03_queue[k]['ts']):
+                if not ack_q03_matched[k] and _ts_ok(dsr['ts'], ack_q03_queue[k]['ts']):
                     dsr_ack_matched[j] = True
                     ack_q03_matched[k] = True
                     break
@@ -422,7 +458,7 @@ def lis_parse_log():
         # 链3: ORU^R01 → ACK^R01
         for i, oru in enumerate(oru_queue):
             for j in ack_r01_idx.get(oru['cid'], []):
-                if not ack_r01_matched[j] and ts_ok(oru['ts'], ack_r01_queue[j]['ts']):
+                if not ack_r01_matched[j] and _ts_ok(oru['ts'], ack_r01_queue[j]['ts']):
                     oru_matched[i] = True
                     ack_r01_matched[j] = True
                     break
@@ -498,49 +534,44 @@ def lis_parse_log():
                 })
 
         # 挂载 flow_issues 到对应行
+        line_ann_map = {ann['line']: ann for ann in line_annotations}
         for issue in flow_issues:
             target_line = issue.get('line')
-            if target_line:
-                for ann in line_annotations:
-                    if ann['line'] == target_line:
-                        ann['issues'].append({'type': issue['type'], 'msg': issue['msg']})
-                        break
-                else:
-                    if line_annotations:
-                        line_annotations[-1]['issues'].append({'type': issue['type'], 'msg': issue['msg']})
-            else:
-                if line_annotations:
-                    line_annotations[-1]['issues'].append({'type': issue['type'], 'msg': issue['msg']})
+            if target_line and target_line in line_ann_map:
+                line_ann_map[target_line]['issues'].append({'type': issue['type'], 'msg': issue['msg']})
+            elif line_annotations:
+                line_annotations[-1]['issues'].append({'type': issue['type'], 'msg': issue['msg']})
 
         # ---------- 9. 帧完整性全局校验 ----------
         incomplete_frames = [f for f in frames if not f['complete']]
         if incomplete_frames and line_annotations:
             for f in incomplete_frames:
                 start_line = f['start_line']
-                for ann in line_annotations:
-                    if ann['line'] == start_line:
-                        ann['issues'].append({
-                            'type': 'fail',
-                            'msg': f'行{f["start_line"]}-{f["end_line"]}: 帧不完整(缺少<FS>+<CR>结束符)'
-                        })
-                        break
-                else:
-                    if line_annotations:
-                        line_annotations[-1]['issues'].append({
-                            'type': 'fail',
-                            'msg': f'行{f["start_line"]}-{f["end_line"]}: 帧不完整(缺少<FS>+<CR>结束符)'
-                        })
+                ann = line_ann_map.get(start_line)
+                if ann:
+                    ann['issues'].append({
+                        'type': 'fail',
+                        'msg': f'行{f["start_line"]}-{f["end_line"]}: 帧不完整(缺少<FS>+<CR>结束符)'
+                    })
+                elif line_annotations:
+                    line_annotations[-1]['issues'].append({
+                        'type': 'fail',
+                        'msg': f'行{f["start_line"]}-{f["end_line"]}: 帧不完整(缺少<FS>+<CR>结束符)'
+                    })
 
         # ---------- 10. 统计（基于全部行） ----------
-        total_issues = sum(len(a['issues']) for a in line_annotations)
-        fail_count = sum(1 for a in line_annotations for i in a['issues'] if i['type'] == 'fail')
-        warn_count = sum(1 for a in line_annotations for i in a['issues'] if i['type'] == 'warn')
-        info_count = sum(1 for a in line_annotations for i in a['issues'] if i['type'] == 'info')
-
-        # 分类统计
+        total_issues = fail_count = warn_count = info_count = 0
         category_stats = {}
         for a in line_annotations:
             for i in a['issues']:
+                total_issues += 1
+                t = i['type']
+                if t == 'fail':
+                    fail_count += 1
+                elif t == 'warn':
+                    warn_count += 1
+                elif t == 'info':
+                    info_count += 1
                 cat = i.get('category', '其他')
                 category_stats[cat] = category_stats.get(cat, 0) + 1
 
@@ -548,7 +579,7 @@ def lis_parse_log():
         total_requests = len(qry_queue) + len(oru_queue)
         total_responses = len(dsr_matched) + len(ack_r01_matched)
         unresponded_requests = (len(qry_queue) - len(qry_matched)) + (len(oru_queue) - len(oru_matched))
-        qry_cid_counts = Counter(q['cid'] for q in qry_queue)
+
         total_retransmits = sum(c - 1 for c in qry_cid_counts.values() if c > 1)
         success_rate = ((total_requests - unresponded_requests) / total_requests * 100) if total_requests > 0 else 100
 
@@ -559,7 +590,7 @@ def lis_parse_log():
                 'filename': log_f.filename,
                 'total_lines': len(log_lines_raw),
                 'total_frames': len(frames),
-                'complete_frames': len([f for f in frames if f['complete']]),
+                'complete_frames': sum(1 for f in frames if f['complete']),
                 'total_issues': total_issues,
                 'fail_count': fail_count,
                 'warn_count': warn_count,
@@ -578,9 +609,8 @@ def lis_parse_log():
         })
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': str(e), 'traceback': traceback.format_exc()}), 500
+        logging.getLogger(__name__).exception(f"LIS解析失败: {e}")
+        return jsonify({'error': '日志解析失败'}), 500
 
 
 
@@ -588,21 +618,22 @@ def lis_parse_log():
 def lis_list_templates():
     try:
         series = request.args.get('series', '').upper()
-        with _db()() as conn:
+        with shared.db_connection() as conn:
             cur = conn.cursor()
             if series:
                 cur.execute('SELECT id, series, model, filename, pdf_filename, created_at, updated_at FROM lis_protocol_templates WHERE series=%s ORDER BY series, model', (series,))
             else:
-                cur.execute('SELECT id, series, model, filename, pdf_filename, created_at, updated_at FROM lis_protocol_templates ORDER BY series, model')
+                cur.execute('SELECT id, series, model, filename, pdf_filename, created_at, updated_at FROM lis_protocol_templates ORDER BY series, model LIMIT 1000')
             rows = cur.fetchall()
             templates = [{'id': r[0], 'series': r[1], 'model': r[2], 'filename': r[3], 'pdf_filename': r[4], 'created_at': str(r[5]), 'updated_at': str(r[6])} for r in rows]
             return jsonify(templates)
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': '服务器内部错误'}), 500
 
 
 
 @lis_bp.route('/api/lis/templates', methods=['POST'])
+@api_login_required
 def lis_upload_template():
     try:
         if 'file' not in request.files:
@@ -623,7 +654,7 @@ def lis_upload_template():
         if ext == 'pdf':
             pdf_data = file_bytes
             pdf_filename = f.filename
-            content = extract_hl7_from_pdf(pdf_data)
+            content = _extract_hl7_from_pdf(pdf_data)
             filename = f.filename
         elif ext in ('txt', 'log', 'hl7'):
             pdf_data = None
@@ -636,7 +667,7 @@ def lis_upload_template():
         if not content.strip():
             content = ''
 
-        with _db()() as conn:
+        with shared.db_connection() as conn:
             cur = conn.cursor()
             cur.execute('SELECT id FROM lis_protocol_templates WHERE series=%s AND model=%s', (series, model))
             existing = cur.fetchone()
@@ -650,7 +681,7 @@ def lis_upload_template():
             conn.commit()
         return jsonify({'success': True, 'message': f'协议模板已保存: {series} {model}', 'extracted_content': content[:500]})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': '服务器内部错误'}), 500
 
 
 
@@ -658,7 +689,7 @@ def lis_upload_template():
 def lis_get_template(series, model):
     try:
         series = series.upper()
-        with _db()() as conn:
+        with shared.db_connection() as conn:
             cur = conn.cursor()
             cur.execute('SELECT id, filename, content, pdf_filename, created_at, updated_at FROM lis_protocol_templates WHERE series=%s AND model=%s', (series, model))
             row = cur.fetchone()
@@ -666,14 +697,15 @@ def lis_get_template(series, model):
                 return jsonify({'error': '未找到该型号的协议模板'}), 404
             return jsonify({'id': row[0], 'filename': row[1], 'content': row[2], 'pdf_filename': row[3], 'created_at': str(row[4]), 'updated_at': str(row[5])})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': '服务器内部错误'}), 500
 
 
 
 @lis_bp.route('/api/lis/templates/<int:tid>', methods=['DELETE'])
+@api_login_required
 def lis_delete_template(tid):
     try:
-        with _db()() as conn:
+        with shared.db_connection() as conn:
             cur = conn.cursor()
             cur.execute('DELETE FROM lis_protocol_templates WHERE id=%s RETURNING id', (tid,))
             if not cur.fetchone():
@@ -681,16 +713,17 @@ def lis_delete_template(tid):
             conn.commit()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': '服务器内部错误'}), 500
 
 
 
 @lis_bp.route('/api/lis/templates/<int:tid>/content', methods=['PUT'])
+@api_login_required
 def lis_update_template_content(tid):
     try:
         data = request.get_json()
         content = data.get('content', '') if data else ''
-        with _db()() as conn:
+        with shared.db_connection() as conn:
             cur = conn.cursor()
             cur.execute('UPDATE lis_protocol_templates SET content=%s, updated_at=NOW() WHERE id=%s RETURNING id', (content, tid))
             if not cur.fetchone():
@@ -698,14 +731,14 @@ def lis_update_template_content(tid):
             conn.commit()
         return jsonify({'success': True})
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': '服务器内部错误'}), 500
 
 
 
 @lis_bp.route('/api/lis/templates/<int:tid>/pdf', methods=['GET'])
 def lis_download_template_pdf(tid):
     try:
-        with _db()() as conn:
+        with shared.db_connection() as conn:
             cur = conn.cursor()
             cur.execute('SELECT pdf_data, pdf_filename FROM lis_protocol_templates WHERE id=%s', (tid,))
             row = cur.fetchone()
@@ -720,7 +753,274 @@ def lis_download_template_pdf(tid):
             response.headers['Content-Disposition'] = f"inline; filename*=UTF-8''{encoded_name}"
             return response
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': '服务器内部错误'}), 500
 
+
+def _extract_hl7_from_pdf(pdf_bytes):
+    try:
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+        text_parts = []
+        for page in reader.pages:
+            t = page.extract_text()
+            if t:
+                text_parts.append(t)
+        return '\n'.join(text_parts)
+    except Exception:
+        return ''
+
+
+def _build_hl7_message(msg_type, fields):
+    now = time.strftime('%Y%m%d%H%M%S')
+    sending_app = fields.get('sending_app', 'IVD')
+    sending_fac = fields.get('sending_fac', 'IVD_LAB')
+    receiving_app = fields.get('receiving_app', 'LIS')
+    receiving_fac = fields.get('receiving_fac', 'HIS')
+    msg_ctrl_id = fields.get('msg_ctrl_id', f'IVD{now}')
+    seg = '|'
+    msh = f'MSH|^~\\&|{sending_app}|{sending_fac}|{receiving_app}|{receiving_fac}|{now}||{msg_type}|{msg_ctrl_id}|P|2.4'
+    segments = [msh]
+    if msg_type.startswith('QRY'):
+        qrd = f'QRD|{now}|R|{msg_ctrl_id}|||||{fields.get("query_type", "LAB")}|||||'
+        qrf = f'QRF|{fields.get("query_name", "ALL")}|||||'
+        segments.extend([qrd, qrf])
+    elif msg_type.startswith('ORU'):
+        pid = f'PID|||{fields.get("patient_id", "P001")}||{fields.get("patient_name", "TEST")}||{fields.get("dob", "19900101")}|{fields.get("gender", "M")}'
+        obr = f'OBR|||{fields.get("specimen_id", "S001")}||{fields.get("test_name", "GLU")}||{now}'
+        obx_lines = []
+        results = fields.get('results', [])
+        if not results:
+            results = [{'value': '5.2', 'unit': 'mmol/L', 'test': 'GLU', 'ref_range': '3.9-6.1'}]
+        for i, r in enumerate(results, 1):
+            obx_lines.append(f'OBX|NM|{r.get("test", "GLU")}^{r.get("test", "GLU")}|||{r.get("value", "5.2")}|{r.get("unit", "mmol/L")}|{r.get("ref_range", "3.9-6.1")}|||F|||{now}')
+        segments.extend([pid, obr] + obx_lines)
+    return '\x0b' + '\r'.join(segments) + '\x1c\r'
+
+
+@lis_bp.route('/api/lis/simulate', methods=['POST'])
+@api_login_required
+def lis_simulate():
+    try:
+        data = request.get_json() or {}
+        msg_type = data.get('msg_type', 'QRY^Q02')
+        host = data.get('host', '').strip()
+        port = data.get('port', 0)
+        timeout_sec = min(data.get('timeout', 5), 30)
+        fields = data.get('fields', {})
+        if msg_type not in _VALID_MSG_TYPES:
+            return jsonify({'error': f'不支持的消息类型: {msg_type}'}), 400
+        hl7_msg = _build_hl7_message(msg_type, fields)
+        if not host or not port:
+            return jsonify({'hl7_message': hl7_msg, 'note': '仅生成消息，未指定目标地址'})
+        import socket
+        try:
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(timeout_sec)
+            sock.connect((host, int(port)))
+            sock.sendall(hl7_msg.encode('utf-8'))
+            response = b''
+            start = time.time()
+            while time.time() - start < timeout_sec:
+                try:
+                    chunk = sock.recv(4096)
+                    if not chunk:
+                        break
+                    response += chunk
+                    if b'\x1c' in response:
+                        break
+                except socket.timeout:
+                    break
+            sock.close()
+            resp_text = response.decode('utf-8', errors='replace')
+            return jsonify({
+                'hl7_message': hl7_msg,
+                'response': resp_text,
+                'response_length': len(response),
+                'status': 'success',
+                'target': f'{host}:{port}',
+            })
+        except ConnectionRefusedError:
+            return jsonify({'hl7_message': hl7_msg, 'error': f'连接被拒绝: {host}:{port}', 'status': 'connection_refused'}), 502
+        except socket.timeout:
+            return jsonify({'hl7_message': hl7_msg, 'error': f'连接超时: {host}:{port}', 'status': 'timeout'}), 504
+        except Exception as e:
+            return jsonify({'hl7_message': hl7_msg, 'error': '连接失败', 'status': 'error'}), 502
+    except Exception as e:
+        logging.getLogger(__name__).exception(f"LIS模拟失败: {e}")
+        return jsonify({'error': '模拟测试失败'}), 500
+
+
+@lis_bp.route('/lis-simulator')
+@login_required
+def lis_simulator_page():
+    return render_template_string('''
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LIS 协议模拟测试</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+body { background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+.page-header { background: linear-gradient(135deg, #7c3aed, #a78bfa); color: white; padding: 24px 0; margin-bottom: 24px; }
+.sim-card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 20px; margin-bottom: 16px; }
+.msg-preview { background: #1e293b; color: #a5f3fc; border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; }
+.resp-preview { background: #1e293b; color: #86efac; border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; }
+.form-label { font-weight: 600; font-size: 0.875rem; color: #475569; }
+.btn-send { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; border: none; border-radius: 8px; padding: 10px 24px; font-weight: 600; }
+.btn-send:hover { background: linear-gradient(135deg, #6d28d9, #5b21b6); color: white; }
+.btn-generate { background: #f1f5f9; color: #475569; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 24px; }
+.status-badge { font-size: 0.75rem; padding: 4px 12px; border-radius: 20px; }
+.status-success { background: #dcfce7; color: #166534; }
+.status-error { background: #fee2e2; color: #991b1b; }
+.status-timeout { background: #fef3c7; color: #92400e; }
+</style>
+</head>
+<body>
+<div class="page-header">
+    <div class="container">
+        <div class="d-flex align-items-center">
+            <a href="/lis-issues" class="text-white text-decoration-none me-3"><i class="bi bi-arrow-left"></i></a>
+            <h4 class="mb-0"><i class="bi bi-broadcast me-2"></i>LIS 协议模拟测试</h4>
+        </div>
+    </div>
+</div>
+<div class="container">
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="sim-card">
+                <h6 class="mb-3"><i class="bi bi-gear me-1"></i> 消息配置</h6>
+                <div class="mb-3">
+                    <label class="form-label">消息类型</label>
+                    <select class="form-select" id="msgType">
+                        <option value="QRY^Q02">QRY^Q02 (查询)</option>
+                        <option value="ORU^R01">ORU^R01 (结果上报)</option>
+                        <option value="ACK^R01">ACK^R01 (确认)</option>
+                    </select>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="form-label">发送应用</label>
+                        <input type="text" class="form-control" id="sendingApp" value="IVD">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">接收应用</label>
+                        <input type="text" class="form-control" id="receivingApp" value="LIS">
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <label class="form-label">发送机构</label>
+                        <input type="text" class="form-control" id="sendingFac" value="IVD_LAB">
+                    </div>
+                    <div class="col-6">
+                        <label class="form-label">接收机构</label>
+                        <input type="text" class="form-control" id="receivingFac" value="HIS">
+                    </div>
+                </div>
+                <div id="oruFields" style="display:none;">
+                    <h6 class="mt-3 mb-2"><i class="bi bi-person me-1"></i> 患者信息</h6>
+                    <div class="row mb-2">
+                        <div class="col-4"><input type="text" class="form-control form-control-sm" id="patientId" value="P001" placeholder="患者ID"></div>
+                        <div class="col-4"><input type="text" class="form-control form-control-sm" id="patientName" value="TEST" placeholder="姓名"></div>
+                        <div class="col-2"><input type="text" class="form-control form-control-sm" id="gender" value="M" placeholder="性别"></div>
+                        <div class="col-2"><input type="text" class="form-control form-control-sm" id="dob" value="19900101" placeholder="生日"></div>
+                    </div>
+                    <h6 class="mt-3 mb-2"><i class="bi bi-test-tube me-1"></i> 检验结果</h6>
+                    <div class="row mb-2">
+                        <div class="col-3"><input type="text" class="form-control form-control-sm" id="testName" value="GLU" placeholder="项目"></div>
+                        <div class="col-3"><input type="text" class="form-control form-control-sm" id="testValue" value="5.2" placeholder="结果"></div>
+                        <div class="col-3"><input type="text" class="form-control form-control-sm" id="testUnit" value="mmol/L" placeholder="单位"></div>
+                        <div class="col-3"><input type="text" class="form-control form-control-sm" id="testRef" value="3.9-6.1" placeholder="参考范围"></div>
+                    </div>
+                </div>
+                <hr>
+                <h6 class="mb-3"><i class="bi bi-router me-1"></i> 目标服务器 (可选)</h6>
+                <div class="row mb-3">
+                    <div class="col-7"><input type="text" class="form-control" id="targetHost" placeholder="LIS服务器IP (如 192.168.1.100)"></div>
+                    <div class="col-3"><input type="number" class="form-control" id="targetPort" placeholder="端口" value="2575"></div>
+                    <div class="col-2"><input type="number" class="form-control" id="timeout" placeholder="超时" value="5"></div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-generate" onclick="generateMsg()"><i class="bi bi-code-slash me-1"></i> 仅生成消息</button>
+                    <button class="btn btn-send" onclick="sendMsg()"><i class="bi bi-send me-1"></i> 发送并等待响应</button>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="sim-card">
+                <h6 class="mb-2"><i class="bi bi-arrow-right me-1"></i> 发送消息 <span id="sendStatus"></span></h6>
+                <div class="msg-preview" id="msgPreview">点击上方按钮生成或发送消息...</div>
+            </div>
+            <div class="sim-card">
+                <h6 class="mb-2"><i class="bi bi-arrow-left me-1"></i> 响应消息 <span id="respStatus"></span></h6>
+                <div class="resp-preview" id="respPreview">等待响应...</div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('msgType').addEventListener('change', function() {
+    document.getElementById('oruFields').style.display = this.value.startsWith('ORU') ? 'block' : 'none';
+});
+function getFields() {
+    const f = {
+        sending_app: document.getElementById('sendingApp').value,
+        receiving_app: document.getElementById('receivingApp').value,
+        sending_fac: document.getElementById('sendingFac').value,
+        receiving_fac: document.getElementById('receivingFac').value,
+    };
+    if (document.getElementById('msgType').value.startsWith('ORU')) {
+        f.patient_id = document.getElementById('patientId').value;
+        f.patient_name = document.getElementById('patientName').value;
+        f.gender = document.getElementById('gender').value;
+        f.dob = document.getElementById('dob').value;
+        f.results = [{test: document.getElementById('testName').value, value: document.getElementById('testValue').value, unit: document.getElementById('testUnit').value, ref_range: document.getElementById('testRef').value}];
+    }
+    return f;
+}
+function escapePreview(text) {
+    return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\x0b/g,'[VT]').replace(/\\x1c/g,'[FS]').replace(/\\r/g,'[CR]');
+}
+async function generateMsg() {
+    const body = {msg_type: document.getElementById('msgType').value, fields: getFields()};
+    const resp = await fetch('/api/lis/simulate', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    const data = await resp.json();
+    document.getElementById('msgPreview').textContent = data.hl7_message || '';
+    document.getElementById('sendStatus').innerHTML = '<span class="status-badge status-success">已生成</span>';
+    document.getElementById('respPreview').textContent = '仅生成模式，未发送';
+}
+async function sendMsg() {
+    const host = document.getElementById('targetHost').value;
+    const port = parseInt(document.getElementById('targetPort').value) || 2575;
+    const timeout = parseInt(document.getElementById('timeout').value) || 5;
+    if (!host) { alert('请输入LIS服务器IP地址'); return; }
+    const body = {msg_type: document.getElementById('msgType').value, host, port, timeout, fields: getFields()};
+    document.getElementById('sendStatus').innerHTML = '<span class="status-badge status-timeout">发送中...</span>';
+    document.getElementById('msgPreview').textContent = '正在发送...';
+    document.getElementById('respPreview').textContent = '等待响应...';
+    try {
+        const resp = await fetch('/api/lis/simulate', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+        const data = await resp.json();
+        document.getElementById('msgPreview').textContent = data.hl7_message || '';
+        if (data.status === 'success') {
+            document.getElementById('sendStatus').innerHTML = '<span class="status-badge status-success">发送成功</span>';
+            document.getElementById('respPreview').textContent = data.response || '(空响应)';
+            document.getElementById('respStatus').innerHTML = '<span class="status-badge status-success">' + data.response_length + ' 字节</span>';
+        } else {
+            document.getElementById('sendStatus').innerHTML = '<span class="status-badge status-error">' + (data.status || '失败') + '</span>';
+            document.getElementById('respPreview').textContent = data.error || '未知错误';
+            document.getElementById('respStatus').innerHTML = '<span class="status-badge status-error">失败</span>';
+        }
+    } catch(e) {
+        document.getElementById('sendStatus').innerHTML = '<span class="status-badge status-error">请求失败</span>';
+        document.getElementById('respPreview').textContent = e.message;
+    }
+}
+</script>
+</body>
+</html>
+''')
 
 

@@ -31,11 +31,14 @@ type MotorMatch struct {
 
 func FindMotorStatusMatches(text, model string) []MotorMatch {
     var matches []MotorMatch
-    seen := make(map[string]bool)
-    var unmatched []struct {
-        board, motor, status, hex string
-        originalText string
+
+    type codeEntry struct {
+        board, motor, status, hex, originalText string
+        pos                                     int
     }
+    var entries []codeEntry
+    var codes [][3]string
+    codeSeen := make(map[[3]string]bool)
 
     for _, match := range longHexPattern.FindAllStringSubmatch(text, -1) {
         hex := strings.ToUpper(match[1])
@@ -50,31 +53,17 @@ func FindMotorStatusMatches(text, model string) []MotorMatch {
             board := groups[0]
             motor := groups[2]
             status := groups[3]
-            key := hex  // 使用完整的hex作为key，避免误判重复
-            if seen[key] {
+            key := [3]string{board, motor, status}
+            if codeSeen[key] {
                 continue
             }
-            seen[key] = true
-            ms, err := db.LookupMotorStatus(board, motor, status, model)
-            if err != nil {
-                continue
-            }
+            codeSeen[key] = true
             idx := strings.Index(text, match[0])
             if idx == -1 {
                 idx = 0
             }
-            originalText := extractLineContext(text, idx)
-            if ms != nil {
-                result := buildMotorMatch(ms, board, motor, status)
-                result.RawHex = hex
-                result.OriginalText = originalText
-                matches = append(matches, result)
-            } else {
-                unmatched = append(unmatched, struct {
-                    board, motor, status, hex string
-                    originalText string
-                }{board: board, motor: motor, status: status, hex: hex, originalText: originalText})
-            }
+            entries = append(entries, codeEntry{board: board, motor: motor, status: status, hex: hex, pos: idx})
+            codes = append(codes, key)
         }
     }
 
@@ -82,29 +71,36 @@ func FindMotorStatusMatches(text, model string) []MotorMatch {
         board := strings.ToUpper(match[1])
         motor := strings.ToUpper(match[2])
         status := strings.ToUpper(match[3])
-        key := board + " " + motor + " " + status  // 使用完整的匹配作为key
-        if seen[key] {
+        key := [3]string{board, motor, status}
+        if codeSeen[key] {
             continue
         }
-        seen[key] = true
-        ms, err := db.LookupMotorStatus(board, motor, status, model)
-        if err != nil {
-            continue
-        }
+        codeSeen[key] = true
         idx := strings.Index(text, match[0])
         if idx == -1 {
             idx = 0
         }
-        originalText := extractLineContext(text, idx)
+        entries = append(entries, codeEntry{board: board, motor: motor, status: status, hex: fmt.Sprintf("%s %s %s", board, motor, status), pos: idx})
+        codes = append(codes, key)
+    }
+
+    resultsMap, err := db.LookupMotorStatusBatch(codes, model)
+    if err != nil {
+        resultsMap = make(map[[3]string]*db.MotorStatus)
+    }
+
+    var unmatched []codeEntry
+    for _, entry := range entries {
+        key := [3]string{entry.board, entry.motor, entry.status}
+        ms := resultsMap[key]
+        originalText := extractLineContext(text, entry.pos)
         if ms != nil {
-            result := buildMotorMatch(ms, board, motor, status)
+            result := buildMotorMatch(ms, entry.board, entry.motor, entry.status)
+            result.RawHex = entry.hex
             result.OriginalText = originalText
             matches = append(matches, result)
         } else {
-            unmatched = append(unmatched, struct {
-                board, motor, status, hex string
-                originalText string
-            }{board: board, motor: motor, status: status, hex: fmt.Sprintf("%s %s %s", board, motor, status), originalText: originalText})
+            unmatched = append(unmatched, codeEntry{board: entry.board, motor: entry.motor, status: entry.status, hex: entry.hex, originalText: originalText})
         }
     }
 

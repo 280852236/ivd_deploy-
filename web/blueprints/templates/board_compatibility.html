@@ -5,19 +5,65 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <title>电路板兼容</title>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%); padding: 20px; min-height: 100vh; }
-        .container { max-width: 1200px; margin: 0 auto; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%); padding: clamp(8px, 2vw, 20px); min-height: 100vh; }
+        .container { max-width: min(1400px, 95vw); margin: 0 auto; }
         .ivd-card { background: white; border-radius: 16px; padding: 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e8ecf1; margin-bottom: 24px; }
         .header-bar { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); border-radius: 16px; padding: 24px 28px; margin-bottom: 24px; color: white; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 20px rgba(99,102,241,0.3); }
         .header-bar h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
         .header-bar .back-link { color: white; text-decoration: none; font-size: 0.95rem; opacity: 0.9; transition: opacity 0.2s; }
         .header-bar .back-link:hover { opacity: 1; }
+        .filter-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+        .filter-bar select, .filter-bar input { border-radius: 10px; border: 2px solid #e8ecf1; padding: 8px 14px; font-size: 0.9rem; transition: border-color 0.2s; }
+        .filter-bar select:focus, .filter-bar input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); outline: none; }
+        .stat-badge { display: inline-flex; align-items: center; gap:8px; background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); padding: 8px 16px; border-radius: 20px; font-weight: 600; color: #3730a3; font-size: 0.9rem; }
+        .ivd-tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 2px solid #e8ecf1; padding-bottom: 0; }
+        .ivd-tab { padding: 12px 24px; cursor: pointer; font-weight: 600; font-size: 0.95rem; color: #64748b; border-bottom: 3px solid transparent; transition: all 0.2s; border-radius: 8px 8px 0 0; user-select: none; }
+        .ivd-tab:hover { color: #6366f1; background: #f0f0ff; }
+        .ivd-tab.active { color: #4f46e5; border-bottom-color: #6366f1; background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); }
+        .ivd-tab-content { display: none; }
+        .ivd-tab-content.active { display: block; }
+        .compat-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.88rem; }
+        .compat-table thead th { background: linear-gradient(135deg, #f0f0ff 0%, #e0e7ff 100%); color: #3730a3; font-weight: 600; padding: 12px 14px; border-bottom: 2px solid #c7d2fe; position: sticky; top: 0; z-index: 2; white-space: nowrap; }
+        .compat-table tbody tr { transition: background 0.15s; }
+        .compat-table tbody tr:hover { background: #f5f3ff; }
+        .compat-table tbody td { padding: 10px 14px; border-bottom: 1px solid #f0f4f8; color: #334155; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .compat-table tbody td:hover { white-space: normal; word-break: break-all; }
+        .btn-primary-custom { background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; border: none; border-radius: 10px; padding: 10px 20px; font-weight: 600; cursor: pointer; transition: all 0.3s; font-size: 0.9rem; }
+        .btn-primary-custom:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(99,102,241,0.4); color: white; }
+        .btn-sm-custom { padding: 6px 14px; font-size: 0.82rem; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+        .btn-edit { background: linear-gradient(135deg, #f59e0-0%, #d97706 100%); color: white; }
+        .btn-edit:hover { box-shadow: 0 4px 12px rgba(245,158,11,0.4); }
+        .btn-del { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; }
+        .btn-del:hover { box-shadow: 0 4px 12px rgba(239,68,68,0.4); }
+        .btn-add { background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); color: white; }
+        .btn-add:hover { box-shadow: 0 4px 12px rgba(34,197,94,0.4); }
+        .btn-import { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; }
+        .btn-import:hover { box-shadow: 0 4px 12px rgba(59,130,246,0.4); }
         .empty-state { text-align: center; padding: 60px 20px; color: #94a3b8; }
         .empty-state i { font-size: 4rem; opacity: 0.4; }
+        .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 9999; padding: 20px; backdrop-filter: blur(4px); }
+        .modal-card { background: white; border-radius: 20px; width: min(100%, 700px); max-height: 90vh; overflow-y: auto; box-shadow: 0 25px 80px rgba(0,0,0,0.25); }
+        .modal-header { padding: 20px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f0f4f8; background: linear-gradient(135deg, #f8fafc 0%, #f0f4f8 100%); }
+        .modal-title { font-size: 1.2rem; font-weight: 700; color: #4f46e5; }
+        .modal-close { border: none; background: #f1f5f9; color: #64748b; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 1.3rem; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .modal-close:hover { background: #e2e8f0; color: #ef4444; }
+        .modal-body { padding: 24px; }
+        .form-label-custom { font-weight: 600; color: #475569; margin-bottom: 6px; font-size: 0.9rem; }
+        .form-control-custom { border-radius: 10px; border: 2px solid #e8ecf1; padding: 10px 14px; transition: border-color 0.2s; width: 100%; font-size: 0.9rem; }
+        .form-control-custom:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99,102,241,0.1); outline: none; }
+        .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid #e8ecf1; }
+        .admin-bar { display: flex; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: linear-gradient(.135deg, #6366f1 0%, #4f46e5 100%); border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -29,13 +75,317 @@
         </div>
         <a href="/" class="back-link"><i class="fas fa-arrow-left me-1"></i> 返回主页</a>
     </div>
+
     <div class="ivd-card">
-        <div class="empty-state">
-            <i class="fas fa-puzzle-piece"></i>
-            <div class="mt-3">功能开发中，敬请期待...</div>
-            <div style="font-size:0.85rem;margin-top:8px;">系列: {{ series }} | 型号: {{ model if model else '未选择' }}</div>
+        <div class="filter-bar">
+            <label style="font-weight:600;color:#475569;">系列:</label>
+            <select id="seriesSelect" onchange="onSeriesChange()">
+                <option value="SMART">SMART</option>
+                <option value="VENUS">VENUS</option>
+            </select>
+            <label style="font-weight:600;color:#475569;">型号:</label>
+            <select id="modelSelect" onchange="loadData()">
+                <option value="">请选择型号</option>
+            </select>
+            <input type="text" id="searchInput" placeholder="搜索关键词..." style="flex:1;min-width:200px;">
+            <span id="statBadge" class="stat-badge" style="display:none;"><i class="fas fa-database"></i> <span id="totalCount">0</span> 条记录</span>
+        </div>
+
+        {% if is_admin %}
+        <div class="admin-bar">
+            <button class="btn-sm-custom btn-add" onclick="showAddModal()"><i class="fas fa-plus me-1"></i> 添加记录</button>
+            <button class="btn-sm-custom btn-import" onclick="showImportModal()"><i class="fas fa-file-import me-1"></i> 批量导入</button>
+        </div>
+        {% endif %}
+
+        <div class="ivd-tabs">
+            <div class="ivd-tab active" onclick="switchTab('pcba')"><i class="fas fa-microchip me-1"></i> PCBA兼容表</div>
+            <div class="ivd-tab" onclick="switchTab('bootloader')"><i class="fas fa-bolt me-1"></i> 底层兼容表</div>
+        </div>
+
+        <div id="pcbaTab" class="ivd-tab-content active">
+            <div class="table-wrap">
+                <table class="compat-table" id="pcbaTable">
+                    <thead>
+                        <tr>
+                            <th>PCBA编码</th><th>PCB编码</th><th>PCB丝印</th><th>最新版本</th>
+                            <th>电路板名称</th><th>特殊说明</th><th>PCBA版本兼容性</th><th>兼容性说明</th>
+                            {% if is_admin %}<th>操作</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody id="pcbaBody"></tbody>
+                </table>
+            </div>
+            <div id="pcbaEmpty" class="empty-state" style="display:none;">
+                <i class="fas fa-puzzle-piece"></i>
+                <div class="mt-3">暂无PCBA兼容数据</div>
+            </div>
+        </div>
+
+        <div id="bootloaderTab" class="ivd-tab-content">
+            <div class="table-wrap">
+                <table class="compat-table" id="bootloaderTable">
+                    <thead>
+                        <tr>
+                            <th>板卡助记码</th><th>电路板名称</th><th>底层版本（Bootloader）</th>
+                            <th>底层版本（Bootloader）兼容性说明</th><th>底层版本（无Bootloader）</th><th>底层版本（无Bootloader）兼容性说明</th>
+                            {% if is_admin %}<th>操作</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody id="bootloaderBody"></tbody>
+                </table>
+            </div>
+            <div id="bootloaderEmpty" class="empty-state" style="display:none;">
+                <i class="fas fa-bolt"></i>
+                <div class="mt-3">暂无底层兼容数据</div>
+            </div>
         </div>
     </div>
 </div>
+
+<!-- 添加/编辑模态框 -->
+<div id="editModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header">
+            <span id="editModalTitle" class="modal-title">添加记录</span>
+            <button class="modal-close" onclick="closeEditModal()">&times;</button>
+        </div>
+        <div id="editModalBody" class="modal-body"></div>
+        <div style="padding:16px 24px;border-top:1px solid #f0f4f8;text-align:right;">
+            <button onclick="closeEditModal()" class="btn-sm-custom" style="background:#94a3b8;color:white;margin-right:8px;">取消</button>
+            <button id="editModalSave" onclick="saveRecord()" class="btn-sm-custom btn-add"><i class="fas fa-save me-1"></i> 保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 批量导入模态框 -->
+<div id="importModal" class="modal-overlay">
+    <div class="modal-card">
+        <div class="modal-header">
+            <span class="modal-title">批量导入</span>
+            <button class="modal-close" onclick="closeImportModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="color:#64748b;margin-bottom:16px;">支持 .xlsx、.xls、.csv 格式，第一行为表头</p>
+            <input type="file" id="importFile" class="form-control-custom" accept=".xlsx,.xls,.csv">
+            <div id="importResult" style="margin-top:16px;"></div>
+        </div>
+        <div style="padding:16px 24px;border-top:1px solid #f0f4f8;text-align:right;">
+            <button onclick="closeImportModal()" class="btn-sm-custom" style="background:#94a3b8;color:white;margin-right:8px;">取消</button>
+            <button onclick="doImport()" class="btn-sm-custom btn-import"><i class="fas fa-upload me-1"></i> 导入</button>
+        </div>
+    </div>
+</div>
+
+<script>
+let _searchTimer;
+const IS_ADMIN = {{ 'true' if is_admin else 'false' }};
+const INIT_SERIES = '{{ series }}';
+const INIT_MODEL = '{{ model }}';
+let currentTab = 'pcba';
+let editingId = null;
+
+const PCBA_FIELDS = ['pcba_code','pcb_code','pcb_silkscreen','latest_version','board_name','special_note','pcba_version_compat','compat_description'];
+const PCBA_LABELS = ['PCBA编码','PCB编码','PCB丝印','最新版本','电路板名称','特殊说明','PCBA版本兼容性','兼容性说明'];
+const BL_FIELDS = ['board_mnemonic','board_name','bootloader_version','bootloader_compat_note','no_bootloader_version','no_bootloader_compat_note'];
+const BL_LABELS = ['板卡助记码','电路板名称','底层版本(Bootloader)','底层版本(Bootloader)兼容性说明','底层版本(无Bootloader)','底层版本(无Bootloader)兼容性说明'];
+
+document.addEventListener('DOMContentLoaded', function() {
+    const si = document.getElementById('searchInput');
+    if (si) si.addEventListener('input', function() {
+        clearTimeout(_searchTimer);
+        _searchTimer = setTimeout(loadData, 300);
+    });
+});
+
+async function fetchModels(series) {
+    const resp = await fetch(`/api/models?series=${series}`);
+    const data = await resp.json();
+    const sel = document.getElementById('modelSelect');
+    sel.innerHTML = '<option value="">请选择型号</option>';
+    const models = Array.isArray(data) ? data : (data.models || []);
+    models.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m.name;
+        opt.textContent = m.name;
+        if (m.name === INIT_MODEL) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    if (!INIT_MODEL && models.length > 0) {
+        sel.value = models[0].name;
+    }
+}
+
+function onSeriesChange() {
+    fetchModels(document.getElementById('seriesSelect').value).then(() => {
+        if (getModel()) loadData();
+    });
+}
+
+function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.ivd-tab').forEach((el, i) => {
+        el.classList.toggle('active', (i === 0 && tab === 'pcba') || (i === 1 && tab === 'bootloader'));
+    });
+    document.getElementById('pcbaTab').classList.toggle('active', tab === 'pcba');
+    document.getElementById('bootloaderTab').classList.toggle('active', tab === 'bootloader');
+    loadData();
+}
+
+function getModel() { return document.getElementById('modelSelect').value; }
+
+async function loadData() {
+    const model = getModel();
+    const keyword = document.getElementById('searchInput').value.trim();
+    if (!model) {
+        document.getElementById('pcbaBody').innerHTML = '';
+        document.getElementById('bootloaderBody').innerHTML = '';
+        document.getElementById('pcbaEmpty').style.display = 'block';
+        document.getElementById('bootloaderEmpty').style.display = 'block';
+        document.getElementById('statBadge').style.display = 'none';
+        return;
+    }
+    const [pcbaResp, blResp] = await Promise.all([
+        fetch(`/api/board-compat/pcba?model=${encodeURIComponent(model)}&keyword=${encodeURIComponent(keyword)}&page=1&per_page=100`),
+        fetch(`/api/board-compat/bootloader?model=${encodeURIComponent(model)}&keyword=${encodeURIComponent(keyword)}&page=1&per_page=100`)
+    ]);
+    const pcbaData = await pcbaResp.json();
+    const blData = await blResp.json();
+
+    const pcbaBody = document.getElementById('pcbaBody');
+    const blBody = document.getElementById('bootloaderBody');
+
+    if (pcbaData.results && pcbaData.results.length > 0) {
+        pcbaBody.innerHTML = pcbaData.results.map(r => `<tr>
+            <td>${esc(r.pcba_code||'')}</td><td>${esc(r.pcb_code||'')}</td><td>${esc(r.pcb_silkscreen||'')}</td>
+            <td>${esc(r.latest_version||'')}</td><td>${esc(r.board_name||'')}</td><td>${esc(r.special_note||'')}</td>
+            <td>${esc(r.pcba_version_compat||'')}</td><td>${esc(r.compat_description||'')}</td>
+            ${IS_ADMIN?`<td><button class="btn-sm-custom btn-edit" onclick="editRecord('pcba',${r.id})"><i class="fas fa-edit"></i></button> <button class="btn-sm-custom btn-del" onclick="delRecord('pcba',${r.id})"><i class="fas fa-trash"></i></button></td>`:''}
+        </tr>`).join('');
+        document.getElementById('pcbaEmpty').style.display = 'none';
+    } else {
+        pcbaBody.innerHTML = '';
+        document.getElementById('pcbaEmpty').style.display = 'block';
+    }
+
+    if (blData.results && blData.results.length > 0) {
+        blBody.innerHTML = blData.results.map(r => `<tr>
+            <td>${esc(r.board_mnemonic||'')}</td><td>${esc(r.board_name||'')}</td>
+            <td>${esc(r.bootloader_version||'')}</td><td>${esc(r.bootloader_compat_note||'')}</td>
+            <td>${esc(r.no_bootloader_version||'')}</td><td>${esc(r.no_bootloader_compat_note||'')}</td>
+            ${IS_ADMIN?`<td><button class="btn-sm-custom btn-edit" onclick="editRecord('bootloader',${r.id})"><i class="fas fa-edit"></i></button> <button class="btn-sm-custom btn-del" onclick="delRecord('bootloader',${r.id})"><i class="fas fa-trash"></i></button></td>`:''}
+        </tr>`).join('');
+        document.getElementById('bootloaderEmpty').style.display = 'none';
+    } else {
+        blBody.innerHTML = '';
+        document.getElementById('bootloaderEmpty').style.display = 'block';
+    }
+
+    const total = (pcbaData.total || 0) + (blData.total || 0);
+    document.getElementById('totalCount').textContent = total;
+    document.getElementById('statBadge').style.display = total > 0 ? 'inline-flex' : 'none';
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function showAddModal() {
+    const model = getModel();
+    if (!model) { alert('请先选择型号'); return; }
+    editingId = null;
+    const fields = currentTab === 'pcba' ? PCBA_FIELDS : BL_FIELDS;
+    const labels = currentTab === 'pcba' ? PCBA_LABELS : BL_LABELS;
+    let html = '';
+    fields.forEach((f, i) => {
+        const req = (currentTab === 'pcba' && f === 'pcba_code') || (currentTab === 'bootloader' && f === 'board_mnemonic');
+        html += `<div class="mb-3"><label class="form-label-custom">${labels[i]}${req?' <span style="color:#ef4444">*</span>':''}</label><input id="ef_${f}" class="form-control-custom" ${req?'required':''}></div>`;
+    });
+    document.getElementById('editModalBody').innerHTML = html;
+    document.getElementById('editModalTitle').textContent = currentTab === 'pcba' ? '添加PCBA兼容记录' : '添加底层兼容记录';
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+async function editRecord(type, id) {
+    const model = getModel();
+    const resp = await fetch(`/api/board-compat/${type}?model=${encodeURIComponent(model)}`);
+    const data = await resp.json();
+    const row = (data.results || []).find(r => r.id === id);
+    if (!row) { alert('记录不存在'); return; }
+    editingId = id;
+    const fields = type === 'pcba' ? PCBA_FIELDS : BL_FIELDS;
+    const labels = type === 'pcba' ? PCBA_LABELS : BL_LABELS;
+    let html = '';
+    fields.forEach((f, i) => {
+        const req = (type === 'pcba' && f === 'pcba_code') || (type === 'bootloader' && f === 'board_mnemonic');
+        html += `<div class="mb-3"><label class="form-label-custom">${labels[i]}${req?' <span style="color:#ef4444">*</span>':''}</label><input id="ef_${f}" class="form-control-custom" value="${esc(row[f]||'')}" ${req?'required':''}></div>`;
+    });
+    document.getElementById('editModalBody').innerHTML = html;
+    document.getElementById('editModalTitle').textContent = '编辑记录';
+    document.getElementById('editModal').style.display = 'flex';
+}
+
+function closeEditModal() { document.getElementById('editModal').style.display = 'none'; }
+
+async function saveRecord() {
+    const model = getModel();
+    const type = currentTab;
+    const fields = type === 'pcba' ? PCBA_FIELDS : BL_FIELDS;
+    const data = { model };
+    fields.forEach(f => data[f] = document.getElementById(`ef_${f}`).value.trim());
+    try {
+        let resp;
+        if (editingId) {
+            resp = await fetch(`/api/board-compat/${type}/${model}/${editingId}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+        } else {
+            resp = await fetch(`/api/board-compat/${type}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+        }
+        const result = await resp.json();
+        if (result.success) { closeEditModal(); loadData(); }
+        else alert((editingId ? '更新' : '添加') + '失败: ' + (result.error || '未知错误'));
+    } catch (err) { alert('操作失败: ' + err.message); }
+}
+
+async function delRecord(type, id) {
+    if (!confirm('确定删除此记录？')) return;
+    const model = getModel();
+    try {
+        const resp = await fetch(`/api/board-compat/${type}/${model}/${id}`, { method:'DELETE' });
+        const result = await resp.json();
+        if (result.success) loadData();
+        else alert('删除失败: ' + (result.error || '未知错误'));
+    } catch (err) { alert('删除失败: ' + err.message); }
+}
+
+function showImportModal() {
+    const model = getModel();
+    if (!model) { alert('请先选择型号'); return; }
+    document.getElementById('importResult').innerHTML = '';
+    document.getElementById('importFile').value = '';
+    document.getElementById('importModal').style.display = 'flex';
+}
+function closeImportModal() { document.getElementById('importModal').style.display = 'none'; }
+
+async function doImport() {
+    const model = getModel();
+    const type = currentTab;
+    const fileInput = document.getElementById('importFile');
+    if (!fileInput.files.length) { alert('请选择文件'); return; }
+    const fd = new FormData();
+    fd.append('model', model);
+    fd.append('file', fileInput.files[0]);
+    try {
+        const resp = await fetch(`/api/board-compat/${type}/import`, { method:'POST', body:fd });
+        const result = await resp.json();
+        if (result.success){
+            document.getElementById('importResult').innerHTML = `<div style="color:#16a34a;font-weight:600;"><i class="fas fa-check-circle me-1"></i>导入完成: 成功 ${result.added} 条, 跳过 ${result.skipped} 条</div>`;
+            loadData();
+        } else {
+            document.getElementById('importResult').innerHTML = `<div style="color:#ef4444;font-weight:600;"><i class="fas fa-times-circle me-1"></i>导入失败: ${result.error||'未知错误'}</div>`;
+        }
+    } catch (err) { document.getElementById('importResult').innerHTML = `<div style="color:#ef4444;">导入失败: ${err.message}</div>`; }
+}
+
+document.getElementById('seriesSelect').value = INIT_SERIES || 'SMART';
+fetchModels(INIT_SERIES || 'SMART').then(() => { if (getModel()) loadData(); });
+</script>
 </body>
 </html>

@@ -1,0 +1,347 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Keylights - IVD智能故障分析平台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            background: white;
+            min-height: 100vh;
+            display: flex;
+            align-items: stretch;
+        }
+        .left-panel {
+            flex: 1 1 38%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 0;
+            position: relative;
+            overflow: hidden;
+            background: white url('/static/images/login-bg.png') center center / contain no-repeat;
+        }
+        .left-panel img {
+            display: none;
+        }
+        .right-panel {
+            flex: 0 0 clamp(360px, 35vw, 520px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: clamp(20px, 3vh, 40px) clamp(20px, 2.5vw, 40px);
+            background: white;
+        }
+        .vision-top {
+            background: linear-gradient(135deg, rgba(173, 216, 230, 0.95) 0%, rgba(135, 206, 235, 0.95) 100%);
+            padding: clamp(10px, 1.5vh, 20px) clamp(20px, 3vw, 50px);
+            border-radius: 14px;
+            box-shadow: 0 8px 32px rgba(0, 132, 168, 0.25);
+            text-align: center;
+            backdrop-filter: blur(10px);
+            margin-bottom: clamp(16px, 2.5vh, 30px);
+            width: 100%;
+        }
+        .vision-top h3 {
+            font-size: clamp(0.95rem, 1.2vw, 1.2rem);
+            font-weight: 600;
+            color: #1a3a4a;
+            margin-bottom: clamp(4px, 0.6vh, 10px);
+            letter-spacing: 1px;
+        }
+        .vision-top p {
+            font-size: clamp(0.72rem, 0.85vw, 0.95rem);
+            line-height: 1.6;
+            color: #2d3748;
+            white-space: normal;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: clamp(320px, 32vw, 420px);
+        }
+        .login-container::before {
+            content: '';
+            display: block;
+            height: 4px;
+            background: linear-gradient(90deg, #0084a8 0%, #00a8cc 100%);
+            border-radius: 4px;
+            margin-bottom: clamp(20px, 3vh, 36px);
+        }
+        .logo {
+            text-align: center;
+            margin-bottom: clamp(20px, 3vh, 32px);
+        }
+        .logo h1 {
+            font-size: clamp(1.5rem, 2.2vw, 2.2rem);
+            font-weight: 700;
+            background: linear-gradient(135deg, #0084a8 0%, #00a8cc 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 6px;
+        }
+        .logo p {
+            color: #64748b;
+            font-size: clamp(0.75rem, 0.9vw, 0.95rem);
+            font-weight: 500;
+        }
+        .form-group {
+            margin-bottom: clamp(14px, 2vh, 22px);
+        }
+        .form-group label {
+            display: block;
+            color: #2d3748;
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: clamp(0.72rem, 0.85vw, 0.88rem);
+        }
+        input {
+            width: 100%;
+            padding: clamp(10px, 1.2vh, 14px) clamp(10px, 1vw, 16px);
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: clamp(0.82rem, 0.95vw, 1rem);
+            transition: all 0.3s;
+            background: #f7fafc;
+        }
+        input:focus {
+            outline: none;
+            border-color: #0084a8;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(0, 132, 168, 0.15);
+        }
+        button {
+            width: 100%;
+            padding: clamp(10px, 1.2vh, 14px);
+            background: linear-gradient(135deg, #0084a8 0%, #00a8cc 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: clamp(0.85rem, 0.95vw, 1rem);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 8px;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 132, 168, 0.4);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .link {
+            text-align: center;
+            margin-top: clamp(14px, 2vh, 22px);
+            padding-top: clamp(12px, 1.5vh, 18px);
+            /* removed divider */
+        }
+        .link a {
+            color: #0084a8;
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+            font-size: clamp(0.8rem, 0.9vw, 0.95rem);
+        }
+        .link a:hover {
+            color: #00a8cc;
+        }
+
+        .error-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .error-box {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 400px;
+        }
+        .error-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+        .error-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 10px;
+        }
+        .error-message {
+            font-size: 1rem;
+            color: #64748b;
+            margin-bottom: 20px;
+        }
+        .error-btn {
+            padding: 10px 30px;
+            background: linear-gradient(135deg, #0d9488 0%, #0891b2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .error-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(13, 148, 136, 0.3);
+        }
+        .register-link {
+            color: #0d9488;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .register-link:hover {
+            text-decoration: underline;
+        }
+        @media (max-width: 1200px) {
+            .left-panel { flex: 0 0 clamp(160px, 20vw, 280px); }
+        }
+        @media (max-width: 900px) {
+            .left-panel { display: none !important; }
+            .right-panel { width: 100%; max-width: 100%; padding: clamp(24px, 5vw, 40px); }
+        }
+    
+        @media (max-width: 480px) {
+            .right-panel { padding: 16px; }
+            .login-container { max-width: 100%; }
+            .logo h1 { font-size: 1.3rem; }
+        }
+    </style>
+</head>
+<body>
+    <div class="left-panel">
+        <img src="/static/images/login-bg.png" alt="Keylights">
+    </div>
+    <div class="right-panel">
+        <div class="vision-top">
+            <h3>科来思愿景</h3>
+            <p>成为全球体外诊断行业的信赖伙伴，通过持续的技术创新和卓越的制造服务，引领行业发展，科技呵护生命健康。</p>
+        </div>
+        <div class="login-container">
+        <div class="logo">
+            <h1>Keylights</h1>
+            <p>IVD 智能故障分析平台</p>
+        </div>
+        
+        <form id="loginForm" method="post">
+            <div class="form-group">
+                <label>用户名</label>
+                <input type="text" name="username" id="username" placeholder="请输入用户名" required autocomplete="username">
+            </div>
+            <div class="form-group">
+                <label>密码</label>
+                <input type="password" name="password" id="password" placeholder="请输入密码" required autocomplete="current-password">
+            </div>
+            <button type="submit" id="submitBtn">登 录</button>
+        </form>
+        <div class="link">
+             <a href="/register">没有账号？立即注册</a>
+         </div>
+     </div>
+    </div>
+    
+    <div class="error-modal" id="errorModal">
+        <div class="error-box">
+            <div class="error-icon" id="errorIcon">❌</div>
+            <div class="error-title" id="errorTitle">登录失败</div>
+            <div class="error-message" id="errorMessage"></div>
+            <div id="errorAction"></div>
+        </div>
+    </div>
+    
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const submitBtn = document.getElementById('submitBtn');
+            
+            if (!username || !password) {
+                showError('empty', '用户名和密码不能为空');
+                return;
+            }
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = '登录中...';
+            
+            try {
+                const formData = new FormData();
+                formData.append('username', username);
+                formData.append('password', password);
+                
+                const response = await fetch('/admin/login', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.href = data.redirect;
+                } else {
+                    showError(data.error, data.message);
+                }
+            } catch (err) {
+                showError('network', '网络错误，请重试');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = '登 录';
+            }
+        });
+        
+        function showError(errorType, message) {
+            const modal = document.getElementById('errorModal');
+            const icon = document.getElementById('errorIcon');
+            const title = document.getElementById('errorTitle');
+            const msg = document.getElementById('errorMessage');
+            const action = document.getElementById('errorAction');
+            
+            msg.textContent = message;
+            
+            if (errorType === 'no_user') {
+                icon.textContent = '👤';
+                title.textContent = '账户不存在';
+                action.innerHTML = '<a href="/register" class="register-link">立即注册</a><br><br><button class="error-btn" onclick="closeError()">确定</button>';
+            } else if (errorType === 'wrong_password') {
+                icon.textContent = '';
+                title.textContent = '密码错误';
+                action.innerHTML = '<button class="error-btn" onclick="closeError()">重新输入</button>';
+            } else {
+                icon.textContent = '⚠️';
+                title.textContent = '提示';
+                action.innerHTML = '<button class="error-btn" onclick="closeError()">确定</button>';
+            }
+            
+            modal.style.display = 'flex';
+        }
+        
+        function closeError() {
+            document.getElementById('errorModal').style.display = 'none';
+        }
+        
+        document.getElementById('errorModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeError();
+            }
+        });
+    </script>
+</body>
+</html>

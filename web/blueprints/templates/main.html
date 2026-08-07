@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IVD 智能故障分析平台</title>
     <!-- Bootstrap 5 CSS (仅样式) -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome 6 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -14,10 +18,10 @@
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; 
             background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
-            padding: 20px;
+            padding: clamp(8px, 2vw, 20px);
             min-height: 100vh;
         }
-        .container { max-width: 1400px; margin: 0 auto; }
+        .container { max-width: min(1400px, 95vw); margin: 0 auto; }
         /* 自定义卡片，与Bootstrap的.card不冲突 */
         .ivd-card { 
             background: white; 
@@ -131,15 +135,16 @@
         .result-box { 
             background: #f8fafc; 
             border-radius: 14px; 
-            padding: 20px; 
+            padding: clamp(8px, 2vw, 20px); 
             max-height: 800px; 
             overflow-y: auto; 
             border: 2px solid #e8ecf1; 
             font-size: 0.95rem; 
         }
         /* 自定义网格 */
-        .ivd-grid { display: grid; grid-template-columns: 380px 1fr; gap: 30px; }
-        @media (max-width: 900px) { .ivd-grid { grid-template-columns: 1fr; } }
+        .ivd-grid { display: grid; grid-template-columns: clamp(280px, 28vw, 420px) 1fr; gap: clamp(16px, 2vw, 30px); }
+        @media (max-width: 1024px) { .ivd-grid { grid-template-columns: clamp(240px, 35vw, 340px) 1fr; } }
+        @media (max-width: 768px) { .ivd-grid { grid-template-columns: 1fr; } }
         /* 文件列表样式 */
         .file-item { 
             padding: 10px 14px; 
@@ -346,7 +351,7 @@
             justify-content: center; 
             align-items: center; 
             z-index: 9999; 
-            padding: 20px;
+            padding: clamp(8px, 2vw, 20px);
             backdrop-filter: blur(4px);
         }
         .modal-card { 
@@ -440,6 +445,7 @@
             <div></div>
             <div style="display:flex;align-items:center;gap:15px;">
                 <span style="font-size:0.95rem;"><i class="fas fa-user me-1"></i> {{ username }}</span>
+                <a href="javascript:void(0)" onclick="window.open('http://'+window.location.hostname+':3000/d/ivd-monitoring-zh', '_blank')" style="color:white;text-decoration:none;font-size:0.9rem;padding:5px 12px;background:rgba(255,255,255,0.2);border-radius:8px;"><i class="fas fa-chart-line me-1"></i> 监控</a>
                 <a href="/admin/logout" style="color:white;text-decoration:none;font-size:0.9rem;padding:5px 12px;background:rgba(255,255,255,0.2);border-radius:8px;"><i class="fas fa-sign-out-alt me-1"></i> 退出</a>
             </div>
         </div>
@@ -469,7 +475,17 @@
                     <div id="coolingFileName" style="margin-top:8px;font-weight:500;color:#0891b2;font-size:0.85rem;"></div>
                 </div>
             </div>
+            <div id="uploadProgress" style="display:none;margin-top:10px;">
+                <div style="display:flex;justify-content:space-between;font-size:0.8rem;color:#64748b;margin-bottom:4px;">
+                    <span id="uploadProgressLabel">上传中...</span>
+                    <span id="uploadProgressPercent">0%</span>
+                </div>
+                <div style="width:100%;height:6px;background:#e2e8f0;border-radius:3px;overflow:hidden;">
+                    <div id="uploadProgressBar" style="width:0%;height:100%;background:linear-gradient(90deg,#00a8cc,#0084a8);border-radius:3px;transition:width 0.3s;"></div>
+                </div>
+            </div>
             <button class="ivd-btn" id="analyzeBtn"><i class="fas fa-search me-1"></i> 开始分析</button>
+            <a href="/analysis-history" class="admin-link" style="margin-top:8px;display:inline-block;"><i class="fas fa-clock-rotate-left me-1"></i> 分析历史记录 →</a>
             {% if is_admin %}
             <a href="/admin/rules" class="admin-link"><i class="fas fa-cog me-1"></i> 管理知识库 →</a>
             {% endif %}
@@ -488,6 +504,7 @@
                 <a href="/lis-issues" class="admin-link" style="background:linear-gradient(135deg,#fef3c7 0%,#fde68a 100%);border-color:#f59e0b;color:#92400e;"><i class="fas fa-exchange-alt me-1"></i> LIS问题排查工具 →</a>
                 <a href="/hardware-failures" class="admin-link" style="background:linear-gradient(135deg,#fee2e2 0%,#fecaca 100%);border-color:#ef4444;color:#991b1b;"><i class="fas fa-microchip me-1"></i> 硬件故障案例 →</a>
                 <a href="/board-compatibility" class="admin-link" style="background:linear-gradient(135deg,#e0e7ff 0%,#c7d2fe 100%);border-color:#6366f1;color:#4338ca;"><i class="fas fa-puzzle-piece me-1"></i> 电路板兼容库 →</a>
+                <a href="https://chat.deepseek.com/" target="_blank" class="admin-link" style="background:linear-gradient(135deg,#f0f9ff 0%,#bae6fd 100%);border-color:#0ea5e9;color:#0369a1;"><i class="fas fa-robot me-1"></i> AI故障排查助手 →</a>
             </div>
         </div>
     </div>
@@ -582,6 +599,7 @@ document.getElementById('analyzeBtn').onclick = async function() {
     if (isCoolingMode) {
         this.disabled = true;
         this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> 排查中...';
+        document.getElementById('uploadProgress').style.display = 'block';
         document.getElementById('resultArea').innerHTML = '<div class="text-center py-5"><i class="fas fa-snowflake" style="font-size:3rem;color:#0891b2;"></i><div class="mt-3">正在排查制冷异常...</div></div>';
         const fd = new FormData();
         fd.append('file', coolingFile);
@@ -590,7 +608,7 @@ document.getElementById('analyzeBtn').onclick = async function() {
         fd.append('analysis_type', 'reagent_cooling');
         fd.append('csrf_token', CSRF_TOKEN);
         try {
-            const resp = await fetchWithTimeout('/api/analyze', { method: 'POST', body: fd }, 300000);
+            const resp = await uploadWithProgress('/api/analyze', fd, 300000);
             if (!resp.ok) {
                 const text = await resp.text();
                 let errMsg = '服务器错误';
@@ -609,6 +627,7 @@ document.getElementById('analyzeBtn').onclick = async function() {
         } catch (err) {
             document.getElementById('resultArea').innerHTML = '<div class="alert alert-danger">❌ 排查失败: ' + err.message + '</div>';
         } finally {
+            document.getElementById('uploadProgress').style.display = 'none';
             if (!isCoolingMode || !document.getElementById('analyzeBtn').dataset.polling) {
                 this.disabled = false;
                 this.innerHTML = '<i class="fas fa-search me-1"></i> 开始分析';
@@ -628,6 +647,7 @@ document.getElementById('analyzeBtn').onclick = async function() {
     }
     this.disabled = true;
     this.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> 分析中...';
+    document.getElementById('uploadProgress').style.display = 'block';
     document.getElementById('resultArea').innerHTML = '<div class="text-center py-5"><i class="fas fa-hourglass-half" style="font-size:3rem;color:#0084a8;"></i><div class="mt-3">正在智能分析...</div></div>';
 
     const fd = new FormData();
@@ -641,7 +661,7 @@ document.getElementById('analyzeBtn').onclick = async function() {
     fd.append('csrf_token', CSRF_TOKEN);
 
     try {
-        const resp = await fetchWithTimeout('/api/analyze', { method: 'POST', body: fd }, 300000);
+        const resp = await uploadWithProgress('/api/analyze', fd, 300000);
         if (!resp.ok) {
             const text = await resp.text();
             let errMsg = '服务器错误';
@@ -674,6 +694,7 @@ document.getElementById('analyzeBtn').onclick = async function() {
         }
         document.getElementById('resultArea').innerHTML = `<div class="alert alert-danger">❌ ${message}</div>`;
     } finally {
+        document.getElementById('uploadProgress').style.display = 'none';
         if (!document.getElementById('analyzeBtn').dataset.polling) {
             this.disabled = false;
             this.innerHTML = '<i class="fas fa-search me-1"></i> 开始分析';
@@ -684,6 +705,40 @@ document.getElementById('analyzeBtn').onclick = async function() {
 function pollTaskStatus(analysisId, btn, isCooling) {
     btn.dataset.polling = 'true';
     let pollCount = 0;
+    const maxPolls = 600;
+    let sseOk = false;
+    try {
+        const es = new EventSource(`/api/task_events/${analysisId}`);
+        sseOk = true;
+        es.onmessage = function(e) {
+            pollCount++;
+            try {
+                const d = JSON.parse(e.data);
+                if (d.status === 'completed' && d.redirect_url) {
+                    es.close(); delete btn.dataset.polling; window.location.href = d.redirect_url;
+                } else if (d.status === 'failed') {
+                    es.close(); delete btn.dataset.polling; btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-search me-1"></i> 开始分析';
+                    document.getElementById('resultArea').innerHTML = `<div class="alert alert-danger">❌ 分析失败: ${d.error || '未知错误'}</div>`;
+                } else if (d.status === 'timeout') {
+                    es.close(); delete btn.dataset.polling; btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-search me-1"></i> 开始分析';
+                    document.getElementById('resultArea').innerHTML = '<div class="alert alert-warning">⏰ 分析超时，请重试</div>';
+                } else {
+                    const icon = isCooling ? 'fa-snowflake' : 'fa-cog';
+                    const color = isCooling ? '#0891b2' : '#2563eb';
+                    const text = isCooling ? '正在排查制冷异常' : '正在智能分析';
+                    document.getElementById('resultArea').innerHTML = `<div class="text-center py-5"><i class="fas ${icon} fa-spin" style="font-size:3rem;color:${color};"></i><div class="mt-3">${text}... (已等待 ${pollCount} 秒)</div></div>`;
+                }
+            } catch(err) {}
+        };
+        es.onerror = function() { es.close(); pollTaskStatusFallback(analysisId, btn, isCooling, pollCount); };
+    } catch(err) {}
+    if (!sseOk) { pollTaskStatusFallback(analysisId, btn, isCooling, 0); }
+}
+
+function pollTaskStatusFallback(analysisId, btn, isCooling, startCount) {
+    let pollCount = startCount || 0;
     const maxPolls = 600;
     const interval = 1000;
     function poll() {
@@ -883,6 +938,37 @@ function fetchWithTimeout(url, options = {}, timeout = 300000) {
             }
             throw err;
         });
+}
+
+function uploadWithProgress(url, formData, timeout = 300000) {
+    return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const timerId = setTimeout(() => { xhr.abort(); const e = new Error('请求超时'); e.name = 'TimeoutError'; reject(e); }, timeout);
+        xhr.upload.onprogress = function(e) {
+            if (e.lengthComputable) {
+                const pct = Math.round((e.loaded / e.total) * 100);
+                const bar = document.getElementById('uploadProgressBar');
+                const label = document.getElementById('uploadProgressLabel');
+                const pctEl = document.getElementById('uploadProgressPercent');
+                if (bar) bar.style.width = pct + '%';
+                if (label) label.textContent = pct < 100 ? '上传中...' : '上传完成，等待分析...';
+                if (pctEl) pctEl.textContent = pct + '%';
+            }
+        };
+        xhr.onload = function() {
+            clearTimeout(timerId);
+            try {
+                const data = JSON.parse(xhr.responseText);
+                resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, json: () => Promise.resolve(data), text: () => Promise.resolve(xhr.responseText) });
+            } catch(e) {
+                resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, json: () => Promise.reject(e), text: () => Promise.resolve(xhr.responseText) });
+            }
+        };
+        xhr.onerror = function() { clearTimeout(timerId); reject(new Error('Failed to fetch')); };
+        xhr.onabort = function() { clearTimeout(timerId); const e = new Error('请求超时'); e.name = 'TimeoutError'; reject(e); };
+        xhr.open('POST', url);
+        xhr.send(formData);
+    });
 }
 
 function renderGroup(groupKey, title, emptyMsg) {

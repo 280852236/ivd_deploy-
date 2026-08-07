@@ -53,14 +53,15 @@ func AnalyzeText(text, series, model string, skipMotorStatus bool) []AnalysisIte
                 keyword = "试剂空吸"
             }
 			adviceText := "检测到 " + strconv.Itoa(len(asp.Conditions)) + " 个异常条件：" + strings.Join(asp.Conditions, "、") + "。建议检查样本/试剂供应情况和管路连接。"
+			eventTime := extractNearestTimestamp(line, 0)
             item := AnalysisItem{
                 Type:         "keyword_match",
                 Keywords:     []string{keyword},
                 Advice:       adviceText,
                 Source:       "异常条件检测",
                 OriginalText: line,
-                EventTime:    extractNearestTimestamp(line, 0),
-                EventDate:    normalizeEventDate(extractNearestTimestamp(line, 0)),
+                EventTime:    eventTime,
+                EventDate:    normalizeEventDate(eventTime),
                 MatchedConditions: asp.Conditions,
                 MatchedCount: len(asp.Conditions),
             }
@@ -70,6 +71,7 @@ func AnalyzeText(text, series, model string, skipMotorStatus bool) []AnalysisIte
     }
 
     rules, _ := db.GetRules(series, model)
+    textLower := strings.ToLower(text)
     for _, rule := range rules {
         keywords := strings.Split(rule.Keywords, ",")
         for _, kw := range keywords {
@@ -77,7 +79,6 @@ func AnalyzeText(text, series, model string, skipMotorStatus bool) []AnalysisIte
             if kw == "" {
                 continue
             }
-            textLower := strings.ToLower(text)
             kwLower := strings.ToLower(kw)
             startIdx := 0
             for {
@@ -91,6 +92,7 @@ func AnalyzeText(text, series, model string, skipMotorStatus bool) []AnalysisIte
                     startIdx = idx + 1
                     continue
                 }
+                eventTime := extractNearestTimestamp(text, idx)
                 source := "手动规则"
                 if rule.Source == "pdf" {
                     source = "PDF知识库"
@@ -101,8 +103,8 @@ func AnalyzeText(text, series, model string, skipMotorStatus bool) []AnalysisIte
                     Advice:       rule.Advice,
                     Source:       source,
                     OriginalText: orig,
-                    EventTime:    extractNearestTimestamp(text, idx),
-                    EventDate:    normalizeEventDate(extractNearestTimestamp(text, idx)),
+                    EventTime:    eventTime,
+                    EventDate:    normalizeEventDate(eventTime),
                 }
                 results = append(results, item)
                 matchedLines[orig] = true
@@ -125,26 +127,27 @@ func extractLineContext(text string, index int) string {
 }
 
 func extractNearestTimestamp(text string, index int) string {
-    if len(text) == 0 {
-        return ""
-    }
-    window := 250
-    start := index - window
-    if start < 0 {
-        start = 0
-    }
-    end := index + window
-    if end > len(text) {
-        end = len(text)
-    }
-    context := text[start:end]
-    for _, pat := range timestampPatterns {
-        loc := pat.FindStringIndex(context)
-        if loc != nil {
-            return context[loc[0]:loc[1]]
-        }
-    }
-    return ""
+	if len(text) == 0 {
+		return ""
+	}
+	window := 250
+	start := index - window
+	if start < 0 {
+		start = 0
+	}
+	end := index + window
+	if end > len(text) {
+		end = len(text)
+	}
+	context := text[start:end]
+	for _, pat := range timestampPatterns {
+		allMatches := pat.FindAllStringIndex(context, -1)
+		if len(allMatches) > 0 {
+			last := allMatches[len(allMatches)-1]
+			return context[last[0]:last[1]]
+		}
+	}
+	return ""
 }
 
 func normalizeEventDate(eventTime string) string {

@@ -3,37 +3,25 @@
 """IVD平台 - BUGS模块"""
 
 from flask import Blueprint, request, jsonify, session, redirect, url_for, make_response, render_template_string
-import re
-import sys
 from psycopg2.extras import RealDictCursor
-def _get_app():
-    return sys.modules['app']
-def _db():
-    return _get_app().db_connection
-def _rts():
-    return _get_app().render_template_string
+import shared
+from shared import api_login_required, api_super_admin_required, login_required
+
 def _bug_table(model):
-    m = re.sub(r'[^a-zA-Z0-9_]', '', model.lower())
-    if not m:
-        return None
-    tbl = f'software_bugs_{m}'
-    with _db()() as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT to_regclass(%s)", (tbl,))
-        if not cur.fetchone()[0]:
-            return None
-    return tbl
+    return shared.resolve_table(model, 'software_bugs')
+
 
 bugs_bp = Blueprint('bugs', __name__)
 
 @bugs_bp.route('/bugs')
+@login_required
 def bugs_page():
     series = request.args.get('series', 'SMART').upper()
     model = request.args.get('model', '')
     if series not in ('SMART', 'VENUS'):
         series = 'SMART'
     is_admin = session.get('admin_logged_in', False)
-    return _rts()(_get_app().BUGS_HTML, series=series, model=model, is_admin=is_admin)
+    return render_template_string(shared.get_template('BUGS_HTML'), series=series, model=model, is_admin=is_admin)
 
 
 
@@ -48,28 +36,23 @@ def get_bugs():
     tbl = _bug_table(model)
     if not tbl:
         return jsonify({'results': [], 'total': 0, 'page': page, 'per_page': per_page})
-    img_tbl = f"bug_images_{model.lower()}"
-    with _db()() as conn:
+    img_tbl = shared.safe_img_table(model, 'bug_images')
+    with shared.db_connection() as conn:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        where = 'WHERE software_version = %s' if version else ''
-        count_params = [version] if version else []
-        cur.execute(f'SELECT COUNT(*) AS cnt FROM {tbl} {where}', count_params)
-        total = cur.fetchone()['cnt']
-        select_params = ([version] if version else []) + [per_page, (page - 1) * per_page]
-        cur.execute(f'SELECT id, %s AS model, software_version, title, cause, workaround, solution, created_at, updated_at FROM {tbl} {where} ORDER BY created_at DESC LIMIT %s OFFSET %s', [model] + select_params)
+        where = 'WHERE b.software_version = %s' if version else ''
+        params = ([version] if version else []) + [model, per_page, (page - 1) * per_page]
+        cur.execute(f'SELECT COUNT(*) OVER() AS total, b.id, %s AS model, b.software_version, b.title, b.cause, b.workaround, b.solution, b.created_at, b.updated_at, COALESCE(img_cnt.cnt, 0) AS image_count FROM {tbl} b LEFT JOIN (SELECT bug_id, COUNT(*) AS cnt FROM {img_tbl} GROUP BY bug_id) img_cnt ON img_cnt.bug_id = b.id {where} ORDER BY b.created_at DESC LIMIT %s OFFSET %s', params)
         rows = cur.fetchall()
+        total = rows[0]['total'] if rows else 0
         for row in rows:
-            if row.get('created_at'):
-                row['created_at'] = row['created_at'].strftime('%Y-%m-%d %H:%M:%S')
-            if row.get('updated_at'):
-                row['updated_at'] = row['updated_at'].strftime('%Y-%m-%d %H:%M:%S')
-            cur.execute(f'SELECT COUNT(*) AS cnt FROM {img_tbl} WHERE bug_id = %s', (row['id'],))
-            row['image_count'] = cur.fetchone()['cnt']
+            row.pop('total', None)
+            shared.format_row_timestamps(row)
         return jsonify({'results': [dict(r) for r in rows], 'total': total, 'page': page, 'per_page': per_page})
 
 
 
 @bugs_bp.route('/api/bugs', methods=['POST'])
+@api_login_required
 def add_bug():
     model = request.form.get('model', '').strip()
     software_version = request.form.get('software_version', '').strip()
@@ -82,17 +65,16 @@ def add_bug():
     tbl = _bug_table(model)
     if not tbl:
         return jsonify({'error': f'型号 {model} 的Bug表不存在'}), 404
-    img_tbl = f"bug_images_{model.lower()}"
-    allowed = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
+    img_tbl = shared.safe_img_table(model, 'bug_images')
     images = []
     for key in request.files:
         if key.startswith('image'):
             img = request.files[key]
-            if img.filename and img.content_type in allowed:
+            if img.filename and img.content_type in shared.ALLOWED_IMAGE_TYPES:
                 img_bytes = img.read()
                 if len(img_bytes) <= 5 * 1024 * 1024:
                     images.append((img_bytes, img.content_type))
-    with _db()() as conn:
+    with shared.db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f'INSERT INTO {tbl} (software_version, title, cause, workaround, solution) VALUES (%s, %s, %s, %s, %s) RETURNING id', (software_version, title, cause, workaround, solution))
         bug_id = cur.fetchone()[0]
@@ -104,6 +86,7 @@ def add_bug():
 
 
 @bugs_bp.route('/api/bugs/<model>/<int:bug_id>', methods=['PUT'])
+@api_login_required
 def update_bug(model, bug_id):
     software_version = request.form.get('software_version', '').strip()
     title = request.form.get('title', '').strip()
@@ -115,15 +98,14 @@ def update_bug(model, bug_id):
     tbl = _bug_table(model)
     if not tbl:
         return jsonify({'error': f'型号 {model} 的Bug表不存在'}), 404
-    img_tbl = f"bug_images_{model.lower()}"
+    img_tbl = shared.safe_img_table(model, 'bug_images')
     images = []
     i = 0
     while True:
         field_name = f'image{i}'
         if field_name in request.files and request.files[field_name].filename:
             img = request.files[field_name]
-            allowed = {'image/jpeg', 'image/png', 'image/gif', 'image/webp'}
-            if img.content_type not in allowed:
+            if img.content_type not in shared.ALLOWED_IMAGE_TYPES:
                 return jsonify({'error': f'图片{i+1}: 仅支持 JPG/PNG/GIF/WebP 格式'}), 400
             img_bytes = img.read()
             if len(img_bytes) > 5 * 1024 * 1024:
@@ -132,7 +114,7 @@ def update_bug(model, bug_id):
             i += 1
         else:
             break
-    with _db()() as conn:
+    with shared.db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f'UPDATE {tbl} SET software_version=%s, title=%s, cause=%s, workaround=%s, solution=%s, updated_at=CURRENT_TIMESTAMP WHERE id=%s', (software_version, title, cause, workaround, solution, bug_id))
         if images:
@@ -146,22 +128,24 @@ def update_bug(model, bug_id):
 
 
 @bugs_bp.route('/api/bugs/<model>/<int:bug_id>', methods=['DELETE'])
+@api_login_required
 def delete_bug(model, bug_id):
     tbl = _bug_table(model)
     if not tbl:
         return jsonify({'error': f'型号 {model} 的Bug表不存在'}), 404
-    with _db()() as conn:
+    with shared.db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f'DELETE FROM {tbl} WHERE id=%s', (bug_id,))
         conn.commit()
+    shared.audit_log('delete_bug', target_type='bug', target_id=bug_id, detail=f'删除 {model} Bug#{bug_id}')
     return jsonify({'message': '删除成功'})
 
 
 
 @bugs_bp.route('/api/bugs/<model>/<int:bug_id>/images')
 def get_bug_images(model, bug_id):
-    img_tbl = f"bug_images_{model.lower()}"
-    with _db()() as conn:
+    img_tbl = shared.safe_img_table(model, 'bug_images')
+    with shared.db_connection() as conn:
         cur = conn.cursor(cursor_factory=RealDictCursor)
         cur.execute(f'SELECT id, image_mime, sort_order FROM {img_tbl} WHERE bug_id=%s ORDER BY sort_order', (bug_id,))
         rows = cur.fetchall()
@@ -171,8 +155,8 @@ def get_bug_images(model, bug_id):
 
 @bugs_bp.route('/api/bugs/<model>/<int:bug_id>/images/<int:image_id>')
 def get_bug_image(model, bug_id, image_id):
-    img_tbl = f"bug_images_{model.lower()}"
-    with _db()() as conn:
+    img_tbl = shared.safe_img_table(model, 'bug_images')
+    with shared.db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f'SELECT image_data, image_mime FROM {img_tbl} WHERE bug_id=%s AND id=%s', (bug_id, image_id))
         row = cur.fetchone()
@@ -180,16 +164,17 @@ def get_bug_image(model, bug_id, image_id):
             return '', 404
         from flask import Response
         response = Response(row[0], mimetype=row[1])
-        response.headers['Cache-Control'] = 'public, max-age=31536000'
+        response.headers['Cache-Control'] = 'public, max-age=604800'
         response.headers['Content-Length'] = len(row[0])
         return response
 
 
 
 @bugs_bp.route('/api/bugs/<model>/<int:bug_id>/images/<int:image_id>', methods=['DELETE'])
+@api_login_required
 def delete_bug_image(model, bug_id, image_id):
-    img_tbl = f"bug_images_{model.lower()}"
-    with _db()() as conn:
+    img_tbl = shared.safe_img_table(model, 'bug_images')
+    with shared.db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f'DELETE FROM {img_tbl} WHERE bug_id=%s AND id=%s', (bug_id, image_id))
         if cur.rowcount == 0:
@@ -199,9 +184,10 @@ def delete_bug_image(model, bug_id, image_id):
 
 
 @bugs_bp.route('/api/bugs/<model>/<int:bug_id>/image', methods=['DELETE'])
+@api_login_required
 def delete_all_bug_images(model, bug_id):
-    img_tbl = f"bug_images_{model.lower()}"
-    with _db()() as conn:
+    img_tbl = shared.safe_img_table(model, 'bug_images')
+    with shared.db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f'DELETE FROM {img_tbl} WHERE bug_id=%s', (bug_id,))
     return jsonify({'success': True, 'message': '所有图片已删除'})
@@ -216,9 +202,9 @@ def get_bug_versions():
     tbl = _bug_table(model)
     if not tbl:
         return jsonify([])
-    with _db()() as conn:
+    with shared.db_connection() as conn:
         cur = conn.cursor()
-        cur.execute(f'SELECT DISTINCT software_version FROM {tbl} ORDER BY software_version DESC')
+        cur.execute(f'SELECT DISTINCT software_version FROM {tbl} ORDER BY software_version DESC LIMIT 500')
         return jsonify([row[0] for row in cur.fetchall()])
 
 
@@ -234,55 +220,43 @@ def search_bugs():
         return jsonify({'results': [], 'total': 0, 'page': page, 'per_page': per_page})
     like_q = f'%{q}%'
     results = []
-    with _db()() as conn:
+    with shared.db_connection() as conn:
         cur = conn.cursor(cursor_factory=RealDictCursor)
         if model:
-            tbl = f"software_bugs_{model.lower()}"
-            img_tbl = f"bug_images_{model.lower()}"
-            cur.execute(f"SELECT id, %s AS model, software_version, title, cause, workaround, solution, created_at, updated_at FROM {tbl} WHERE title ILIKE %s OR cause ILIKE %s OR workaround ILIKE %s OR solution ILIKE %s OR software_version ILIKE %s", (model, like_q, like_q, like_q, like_q, like_q))
-            for row in cur.fetchall():
-                if row.get('created_at'):
-                    row['created_at'] = row['created_at'].strftime('%Y-%m-%d %H:%M:%S')
-                if row.get('updated_at'):
-                    row['updated_at'] = row['updated_at'].strftime('%Y-%m-%d %H:%M:%S')
-                cur.execute(f'SELECT COUNT(*) AS cnt FROM {img_tbl} WHERE bug_id = %s', (row['id'],))
-                row['image_count'] = cur.fetchone()['cnt']
-                results.append(dict(row))
+            clean_m = shared._CLEAN_RE.sub('', model.lower())
+            tables = [(model, f"software_bugs_{clean_m}", shared.safe_img_table(model, 'bug_images'))]
         elif series:
             cur.execute("SELECT m.name FROM models m JOIN series s ON m.series_id = s.id WHERE UPPER(s.name) = UPPER(%s)", (series,))
             models = [row['name'] for row in cur.fetchall()]
-            for m in models:
-                tbl = f"software_bugs_{m.lower()}"
-                img_tbl = f"bug_images_{m.lower()}"
-                cur.execute(f"SELECT id, %s AS model, software_version, title, cause, workaround, solution, created_at, updated_at FROM {tbl} WHERE title ILIKE %s OR cause ILIKE %s OR workaround ILIKE %s OR solution ILIKE %s OR software_version ILIKE %s", (m, like_q, like_q, like_q, like_q, like_q))
-                for row in cur.fetchall():
-                    if row.get('created_at'):
-                        row['created_at'] = row['created_at'].strftime('%Y-%m-%d %H:%M:%S')
-                    if row.get('updated_at'):
-                        row['updated_at'] = row['updated_at'].strftime('%Y-%m-%d %H:%M:%S')
-                    cur.execute(f'SELECT COUNT(*) AS cnt FROM {img_tbl} WHERE bug_id = %s', (row['id'],))
-                    row['image_count'] = cur.fetchone()['cnt']
-                    results.append(dict(row))
+            tables = [(m, f"software_bugs_{shared._CLEAN_RE.sub('', m.lower())}", shared.safe_img_table(m, 'bug_images')) for m in models]
         else:
             cur.execute("SELECT tablename FROM pg_tables WHERE tablename LIKE 'software_bugs_%'")
-            tables = [row['tablename'] for row in cur.fetchall()]
-            for tbl in tables:
-                model_name = tbl.replace('software_bugs_', '').upper()
-                img_tbl = f"bug_images_{model_name.lower()}"
-                cur.execute(f"SELECT id, %s AS model, software_version, title, cause, workaround, solution, created_at, updated_at FROM {tbl} WHERE title ILIKE %s OR cause ILIKE %s OR workaround ILIKE %s OR solution ILIKE %s OR software_version ILIKE %s", (model_name, like_q, like_q, like_q, like_q, like_q))
-                for row in cur.fetchall():
-                    if row.get('created_at'):
-                        row['created_at'] = row['created_at'].strftime('%Y-%m-%d %H:%M:%S')
-                    if row.get('updated_at'):
-                        row['updated_at'] = row['updated_at'].strftime('%Y-%m-%d %H:%M:%S')
-                    cur.execute(f'SELECT COUNT(*) AS cnt FROM {img_tbl} WHERE bug_id = %s', (row['id'],))
-                    row['image_count'] = cur.fetchone()['cnt']
-                    results.append(dict(row))
-    results.sort(key=lambda x: x.get('created_at', ''), reverse=True)
-    total = len(results)
-    start = (page - 1) * per_page
-    page_results = results[start:start + per_page]
-    return jsonify({'results': page_results, 'total': total, 'page': page, 'per_page': per_page})
+            bug_tables = [row['tablename'] for row in cur.fetchall()]
+            tables = [(t.replace('software_bugs_', '').upper(), t, t.replace('software_bugs_', 'bug_images_')) for t in bug_tables]
+
+        if tables:
+            queries = []
+            params = []
+            for model_name, tbl, img_tbl in tables:
+                queries.append(f"""
+                    SELECT b.id, %s AS model, b.software_version, b.title, b.cause, b.workaround, b.solution,
+                           b.created_at, b.updated_at, COALESCE(img_cnt.cnt, 0) AS image_count
+                    FROM {tbl} b
+                    LEFT JOIN (SELECT bug_id, COUNT(*) AS cnt FROM {img_tbl} GROUP BY bug_id) img_cnt ON img_cnt.bug_id = b.id
+                    WHERE b.title ILIKE %s OR b.cause ILIKE %s OR b.workaround ILIKE %s OR b.solution ILIKE %s OR b.software_version ILIKE %s
+                """)
+                params.extend([model_name, like_q, like_q, like_q, like_q, like_q])
+            union_query = " UNION ALL ".join(queries)
+            count_query = f"SELECT COUNT(*) AS cnt FROM ({union_query}) AS all_bugs"
+            cur.execute(count_query, params)
+            total = cur.fetchone()['cnt']
+            offset = (page - 1) * per_page
+            paginated_query = f"SELECT * FROM ({union_query}) AS all_bugs ORDER BY created_at DESC LIMIT %s OFFSET %s"
+            cur.execute(paginated_query, params + [per_page, offset])
+            for row in cur.fetchall():
+                shared.format_row_timestamps(row)
+                results.append(dict(row))
+    return jsonify({'results': results, 'total': total, 'page': page, 'per_page': per_page})
 
 
 

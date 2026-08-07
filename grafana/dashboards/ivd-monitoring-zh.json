@@ -15,12 +15,12 @@
   "panels": [
     {
       "id": 1,
-      "title": "HTTP请求总数",
+      "title": "HTTP请求/秒",
       "type": "stat",
       "gridPos": {
         "x": 0,
         "y": 0,
-        "w": 4,
+        "w": 3,
         "h": 4
       },
       "targets": [
@@ -31,14 +31,12 @@
           },
           "expr": "sum(rate(http_request_count_total[5m]))",
           "refId": "A",
-          "legendFormat": "请求/秒"
+          "legendFormat": "总请求/秒"
         }
       ],
       "options": {
         "colorMode": "value",
         "graphMode": "area",
-        "justifyMode": "auto",
-        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -50,18 +48,35 @@
       "fieldConfig": {
         "defaults": {
           "unit": "reqps",
-          "displayName": "请求速率"
+          "displayName": "请求/秒",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 20
+              }
+            ]
+          }
         }
       }
     },
     {
       "id": 2,
-      "title": "请求延迟（95分位）",
+      "title": "请求延迟 P95",
       "type": "gauge",
       "gridPos": {
-        "x": 4,
+        "x": 3,
         "y": 0,
-        "w": 4,
+        "w": 3,
         "h": 4
       },
       "targets": [
@@ -75,7 +90,6 @@
         }
       ],
       "options": {
-        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -83,14 +97,14 @@
           "fields": "",
           "values": false
         },
-        "showThresholdLabels": false,
+        "showThresholdLabels": true,
         "showThresholdMarkers": true
       },
       "fieldConfig": {
         "defaults": {
           "unit": "s",
-          "displayName": "响应时间",
-          "max": 1,
+          "displayName": "P95延迟",
+          "max": 2,
           "min": 0,
           "thresholds": {
             "mode": "absolute",
@@ -101,11 +115,11 @@
               },
               {
                 "color": "yellow",
-                "value": 0.3
+                "value": 0.5
               },
               {
                 "color": "red",
-                "value": 0.5
+                "value": 1
               }
             ]
           }
@@ -117,9 +131,9 @@
       "title": "CPU使用率",
       "type": "gauge",
       "gridPos": {
-        "x": 8,
+        "x": 6,
         "y": 0,
-        "w": 4,
+        "w": 3,
         "h": 4
       },
       "targets": [
@@ -133,7 +147,6 @@
         }
       ],
       "options": {
-        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -141,7 +154,7 @@
           "fields": "",
           "values": false
         },
-        "showThresholdLabels": false,
+        "showThresholdLabels": true,
         "showThresholdMarkers": true
       },
       "fieldConfig": {
@@ -175,9 +188,9 @@
       "title": "内存使用率",
       "type": "gauge",
       "gridPos": {
-        "x": 0,
-        "y": 4,
-        "w": 4,
+        "x": 9,
+        "y": 0,
+        "w": 3,
         "h": 4
       },
       "targets": [
@@ -191,7 +204,6 @@
         }
       ],
       "options": {
-        "orientation": "auto",
         "reduceOptions": {
           "calcs": [
             "lastNotNull"
@@ -199,7 +211,7 @@
           "fields": "",
           "values": false
         },
-        "showThresholdLabels": false,
+        "showThresholdLabels": true,
         "showThresholdMarkers": true
       },
       "fieldConfig": {
@@ -229,14 +241,14 @@
       }
     },
     {
-      "id": 5,
-      "title": "磁盘使用率",
-      "type": "gauge",
+      "id": 6,
+      "title": "HTTP请求趋势（Top 10 接口）",
+      "type": "timeseries",
       "gridPos": {
-        "x": 4,
+        "x": 0,
         "y": 4,
-        "w": 4,
-        "h": 4
+        "w": 12,
+        "h": 7
       },
       "targets": [
         {
@@ -244,56 +256,50 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "(1 - (node_filesystem_avail_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"} / node_filesystem_size_bytes{mountpoint=\"/\",fstype!=\"tmpfs\"})) * 100",
-          "refId": "A"
+          "expr": "topk(10, label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(sum by (endpoint) (rate(http_request_count_total[5m])), \"endpoint\", \"首页\", \"endpoint\", \"^/$\"), \"endpoint\", \"管理员登录\", \"endpoint\", \"^/admin/login$\"), \"endpoint\", \"管理员退出\", \"endpoint\", \"^/admin/logout$\"), \"endpoint\", \"规则管理页\", \"endpoint\", \"^/admin/rules$\"), \"endpoint\", \"分析详情页\", \"endpoint\", \"^/analysis/:id$\"), \"endpoint\", \"分析历史页\", \"endpoint\", \"^/analysis-history$\"), \"endpoint\", \"分析数据\", \"endpoint\", \"^/api/analysis/:id$\"), \"endpoint\", \"文件下载\", \"endpoint\", \"^/api/analysis/:id/file$\"), \"endpoint\", \"加载更多文件\", \"endpoint\", \"^/api/analysis/:id/load-more$\"), \"endpoint\", \"分析文件树\", \"endpoint\", \"^/api/analysis/:id/tree$\"), \"endpoint\", \"文件上传分析\", \"endpoint\", \"^/api/analyze$\"), \"endpoint\", \"Bootloader兼容\", \"endpoint\", \"^/api/board-compat/bootloader$\"), \"endpoint\", \"PCBA兼容\", \"endpoint\", \"^/api/board-compat/pcba$\"), \"endpoint\", \"故障管理API\", \"endpoint\", \"^/api/bugs$\"), \"endpoint\", \"故障搜索\", \"endpoint\", \"^/api/bugs/search$\"), \"endpoint\", \"故障版本\", \"endpoint\", \"^/api/bugs/versions$\"), \"endpoint\", \"CSRF令牌\", \"endpoint\", \"^/api/csrf-token$\"), \"endpoint\", \"硬件故障API\", \"endpoint\", \"^/api/hardware-failures$\"), \"endpoint\", \"硬件故障搜索\", \"endpoint\", \"^/api/hardware-failures/search$\"), \"endpoint\", \"健康检查\", \"endpoint\", \"^/api/health$\"), \"endpoint\", \"PDF导入\", \"endpoint\", \"^/api/import_pdf$\"), \"endpoint\", \"LIS日志解析\", \"endpoint\", \"^/api/lis/parse-log$\"), \"endpoint\", \"LIS模拟\", \"endpoint\", \"^/api/lis/simulate$\"), \"endpoint\", \"LIS模板\", \"endpoint\", \"^/api/lis/templates$\"), \"endpoint\", \"设备型号\", \"endpoint\", \"^/api/models$\"), \"endpoint\", \"电机状态\", \"endpoint\", \"^/api/motor_status$\"), \"endpoint\", \"规则API\", \"endpoint\", \"^/api/rules$\"), \"endpoint\", \"文件内搜索\", \"endpoint\", \"^/api/search-in-files$\"), \"endpoint\", \"设备系列\", \"endpoint\", \"^/api/series$\"), \"endpoint\", \"任务事件SSE\", \"endpoint\", \"^/api/task_events/:id$\"), \"endpoint\", \"任务状态\", \"endpoint\", \"^/api/task_status/:id$\"), \"endpoint\", \"用户管理\", \"endpoint\", \"^/api/users$\"), \"endpoint\", \"超管验证\", \"endpoint\", \"^/api/verify_super_admin$\"), \"endpoint\", \"兼容性页面\", \"endpoint\", \"^/board-compatibility$\"), \"endpoint\", \"故障页面\", \"endpoint\", \"^/bugs$\"), \"endpoint\", \"硬件故障页面\", \"endpoint\", \"^/hardware-failures$\"), \"endpoint\", \"LIS问题页面\", \"endpoint\", \"^/lis-issues$\"), \"endpoint\", \"LIS模拟器\", \"endpoint\", \"^/lis-simulator$\"), \"endpoint\", \"用户注册\", \"endpoint\", \"^/register$\"))",
+          "refId": "A",
+          "legendFormat": "{{endpoint}}"
         }
       ],
       "options": {
-        "orientation": "auto",
-        "reduceOptions": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
           "calcs": [
-            "lastNotNull"
+            "lastNotNull",
+            "max"
           ],
-          "fields": "",
-          "values": false
+          "sortBy": "Last",
+          "sortDesc": true
         },
-        "showThresholdLabels": false,
-        "showThresholdMarkers": true
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "percent",
-          "displayName": "磁盘使用率",
-          "max": 100,
-          "min": 0,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "yellow",
-                "value": 70
-              },
-              {
-                "color": "red",
-                "value": 85
-              }
-            ]
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "fillGradient": 4,
+            "spanNulls": false,
+            "showPoints": "never"
           }
         }
       }
     },
     {
-      "id": 6,
-      "title": "HTTP请求趋势",
+      "id": 8,
+      "title": "HTTP状态码分布",
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 8,
-        "w": 12,
+        "y": 11,
+        "w": 6,
         "h": 6
       },
       "targets": [
@@ -302,18 +308,150 @@
             "type": "prometheus",
             "uid": "PBFA97CFB590B2093"
           },
-          "expr": "rate(http_request_count_total[5m])",
+          "expr": "sum by (status) (rate(http_request_count_total[5m]))",
           "refId": "A",
-          "legendFormat": "请求速率"
+          "legendFormat": "{{status}}"
         }
       ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": []
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
       "fieldConfig": {
         "defaults": {
+          "unit": "reqps",
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "smooth",
             "lineWidth": 2,
-            "fillOpacity": 10
+            "fillOpacity": 15,
+            "fillGradient": 4,
+            "spanNulls": false,
+            "showPoints": "never"
+          },
+          "color": {
+            "mode": "fixed"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "200"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "404"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "500"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "429"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "title": "请求延迟分布（Top 10 接口 P95）",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 6,
+        "y": 11,
+        "w": 6,
+        "h": 6
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "expr": "topk(10, label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(label_replace(histogram_quantile(0.95, sum by (le, endpoint) (rate(http_request_latency_seconds_bucket[5m]))), \"endpoint\", \"首页\", \"endpoint\", \"^/$\"), \"endpoint\", \"管理员登录\", \"endpoint\", \"^/admin/login$\"), \"endpoint\", \"管理员退出\", \"endpoint\", \"^/admin/logout$\"), \"endpoint\", \"规则管理页\", \"endpoint\", \"^/admin/rules$\"), \"endpoint\", \"分析详情页\", \"endpoint\", \"^/analysis/:id$\"), \"endpoint\", \"分析历史页\", \"endpoint\", \"^/analysis-history$\"), \"endpoint\", \"分析数据\", \"endpoint\", \"^/api/analysis/:id$\"), \"endpoint\", \"文件下载\", \"endpoint\", \"^/api/analysis/:id/file$\"), \"endpoint\", \"加载更多文件\", \"endpoint\", \"^/api/analysis/:id/load-more$\"), \"endpoint\", \"分析文件树\", \"endpoint\", \"^/api/analysis/:id/tree$\"), \"endpoint\", \"文件上传分析\", \"endpoint\", \"^/api/analyze$\"), \"endpoint\", \"Bootloader兼容\", \"endpoint\", \"^/api/board-compat/bootloader$\"), \"endpoint\", \"PCBA兼容\", \"endpoint\", \"^/api/board-compat/pcba$\"), \"endpoint\", \"故障管理API\", \"endpoint\", \"^/api/bugs$\"), \"endpoint\", \"故障搜索\", \"endpoint\", \"^/api/bugs/search$\"), \"endpoint\", \"故障版本\", \"endpoint\", \"^/api/bugs/versions$\"), \"endpoint\", \"CSRF令牌\", \"endpoint\", \"^/api/csrf-token$\"), \"endpoint\", \"硬件故障API\", \"endpoint\", \"^/api/hardware-failures$\"), \"endpoint\", \"硬件故障搜索\", \"endpoint\", \"^/api/hardware-failures/search$\"), \"endpoint\", \"健康检查\", \"endpoint\", \"^/api/health$\"), \"endpoint\", \"PDF导入\", \"endpoint\", \"^/api/import_pdf$\"), \"endpoint\", \"LIS日志解析\", \"endpoint\", \"^/api/lis/parse-log$\"), \"endpoint\", \"LIS模拟\", \"endpoint\", \"^/api/lis/simulate$\"), \"endpoint\", \"LIS模板\", \"endpoint\", \"^/api/lis/templates$\"), \"endpoint\", \"设备型号\", \"endpoint\", \"^/api/models$\"), \"endpoint\", \"电机状态\", \"endpoint\", \"^/api/motor_status$\"), \"endpoint\", \"规则API\", \"endpoint\", \"^/api/rules$\"), \"endpoint\", \"文件内搜索\", \"endpoint\", \"^/api/search-in-files$\"), \"endpoint\", \"设备系列\", \"endpoint\", \"^/api/series$\"), \"endpoint\", \"任务事件SSE\", \"endpoint\", \"^/api/task_events/:id$\"), \"endpoint\", \"任务状态\", \"endpoint\", \"^/api/task_status/:id$\"), \"endpoint\", \"用户管理\", \"endpoint\", \"^/api/users$\"), \"endpoint\", \"超管验证\", \"endpoint\", \"^/api/verify_super_admin$\"), \"endpoint\", \"兼容性页面\", \"endpoint\", \"^/board-compatibility$\"), \"endpoint\", \"故障页面\", \"endpoint\", \"^/bugs$\"), \"endpoint\", \"硬件故障页面\", \"endpoint\", \"^/hardware-failures$\"), \"endpoint\", \"LIS问题页面\", \"endpoint\", \"^/lis-issues$\"), \"endpoint\", \"LIS模拟器\", \"endpoint\", \"^/lis-simulator$\"), \"endpoint\", \"用户注册\", \"endpoint\", \"^/register$\"))",
+          "refId": "A",
+          "legendFormat": "{{endpoint}}"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "right",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "sortBy": "Last",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 8,
+            "fillGradient": 4,
+            "spanNulls": false,
+            "showPoints": "never"
           }
         }
       }
@@ -324,9 +462,9 @@
       "type": "timeseries",
       "gridPos": {
         "x": 0,
-        "y": 14,
+        "y": 17,
         "w": 12,
-        "h": 6
+        "h": 5
       },
       "targets": [
         {
@@ -357,17 +495,80 @@
           "legendFormat": "15分钟负载"
         }
       ],
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
       "fieldConfig": {
         "defaults": {
           "custom": {
             "drawStyle": "line",
             "lineInterpolation": "smooth",
-            "lineWidth": 2
+            "lineWidth": 2,
+            "fillOpacity": 5,
+            "spanNulls": false,
+            "showPoints": "never"
           }
-        }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "1分钟负载"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "5分钟负载"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "yellow",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "15分钟负载"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
       }
     }
   ],
   "schemaVersion": 38,
-  "version": 0
+  "version": 1
 }

@@ -4,13 +4,17 @@
     <meta charset="UTF-8">
     <title>知识库管理</title>
     <!-- Bootstrap 5 CSS -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* 自定义样式，补充Bootstrap */
-        body { font-family: system-ui; background: #f5f7fb; padding: 30px; }
-        .container { max-width: 1200px; margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        body { font-family: system-ui; background: #f5f7fb; padding: clamp(16px, 3vw, 30px); }
+        .container { max-width: min(1200px, 95vw); margin: auto; background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
         h2 { color: #1e6f9f; margin-bottom: 20px; }
         /* 自定义按钮（避免与Bootstrap冲突） */
         .ivd-btn { 
@@ -58,11 +62,13 @@
 </head>
 <body>
 <div class="container">
-    <h2><i class="fas fa-book me-2"></i>知识库管理 <a href="/admin/logout" class="logout"><i class="fas fa-sign-out-alt me-1"></i>退出</a></h2>
+    <h2><i class="fas fa-book me-2"></i>知识库管理 <a href="javascript:void(0)" onclick="window.open('http://'+window.location.hostname+':3000/d/ivd-monitoring-zh', '_blank')" class="logout"><i class="fas fa-chart-line me-1"></i>监控</a> <a href="/admin/logout" class="logout"><i class="fas fa-sign-out-alt me-1"></i>退出</a></h2>
     <div class="ivd-tabs">
         <div class="ivd-tab active" onclick="switchTab('rules')"><i class="fas fa-pen me-1"></i> 规则管理</div>
         <div class="ivd-tab" onclick="switchTab('pdf')"><i class="fas fa-file-pdf me-1"></i> PDF导入</div>
         <div class="ivd-tab" onclick="switchTab('versions')"><i class="fas fa-history me-1"></i> 版本历史</div>
+        <div class="ivd-tab" onclick="switchTab('boardcompat')"><i class="fas fa-puzzle-piece me-1"></i> 电路板兼容表</div>
+        <div class="ivd-tab" onclick="switchTab('users')"><i class="fas fa-users me-1"></i> 用户管理</div>
     </div>
     <div id="tab-rules" class="ivd-tab-content active">
         <div class="d-flex gap-2 mb-3">
@@ -103,6 +109,25 @@
         <div id="motorStatusList" class="mt-3"><div class="result-box result-info"><i class="fas fa-info-circle me-1"></i> 请选择系列和型号后点击"刷新"</div></div>
     </div>
     <div id="tab-versions" class="ivd-tab-content"><div id="versionList"><div class="result-box result-info"><i class="fas fa-spinner fa-spin me-1"></i> 加载中...</div></div></div>
+    <div id="tab-boardcompat" class="ivd-tab-content">
+        <div class="d-flex gap-2 mb-3 flex-wrap align-items-center">
+            <select id="bcSeries" class="form-select" style="flex:1;max-width:150px;" onchange="bcOnSeriesChange()"><option value="">选择系列</option><option value="SMART">SMART</option><option value="VENUS">VENUS</option></select>
+            <select id="bcModel" class="form-select" style="flex:1;max-width:180px;" disabled><option>请先选择系列</option></select>
+            <select id="bcType" class="form-select" style="flex:1;max-width:180px;"><option value="pcba">PCBA兼容表</option><option value="bootloader">底层兼容表</option></select>
+            <button class="ivd-btn" onclick="bcLoadData()"><i class="fas fa-folder-open me-1"></i> 加载</button>
+            <button class="ivd-btn ivd-btn-success" onclick="bcShowAddModal()"><i class="fas fa-plus me-1"></i> 添加</button>
+            <button class="ivd-btn ivd-btn-success" onclick="bcShowImportModal()"><i class="fas fa-file-import me-1"></i> 批量导入</button>
+        </div>
+        <div id="bcDataList"><div class="result-box result-info"><i class="fas fa-info-circle me-1"></i> 请选择系列、型号和表类型后点击"加载"</div></div>
+    </div>
+    <div id="tab-users" class="ivd-tab-content">
+        <div class="d-flex gap-2 mb-3 align-items-center flex-wrap">
+            <h3 style="margin:0;color:#1e6f9f;"><i class="fas fa-users me-1"></i> 用户列表</h3>
+            <button class="ivd-btn ivd-btn-sm" onclick="loadUsers()"><i class="fas fa-sync me-1"></i> 刷新</button>
+        </div>
+        <div id="usersList" class="table-container"></div>
+        <div id="usersPagination" class="d-flex justify-content-center gap-2 mt-3"></div>
+    </div>
 </div>
 
 <script>
@@ -146,10 +171,11 @@ document.getElementById('pdfModel').onchange = function() {
 function switchTab(name) {
     document.querySelectorAll('.ivd-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.ivd-tab-content').forEach(t => t.classList.remove('active'));
-    const tabMap = {'rules':0, 'pdf':1, 'versions':2};
+    const tabMap = {'rules':0, 'pdf':1, 'versions':2, 'boardcompat':3, 'users':4};
     document.querySelectorAll('.ivd-tab')[tabMap[name]].classList.add('active');
     document.getElementById(`tab-${name}`).classList.add('active');
     if (name === 'versions') loadVersions();
+    if (name === 'users') loadUsers();
     if (name === 'pdf') {
         const series = document.getElementById('pdfSeries').value;
         const model = document.getElementById('pdfModel').value;
@@ -386,6 +412,284 @@ async function exportMotorStatus() {
 async function loadVersions() {
     document.getElementById('versionList').innerHTML = '<div class="result-box result-info"><i class="fas fa-info-circle me-1"></i> 📜 版本历史功能开发中...</div>';
 }
+
+// ========== 电路板兼容表 ==========
+async function bcOnSeriesChange() {
+    const series = document.getElementById('bcSeries').value;
+    const sel = document.getElementById('bcModel');
+    sel.disabled = !series;
+    sel.innerHTML = '<option value="">请选择型号</option>';
+    if (!series) return;
+    const resp = await fetch(`/api/models?series=${series}`);
+    const data = await resp.json();
+    const models = Array.isArray(data) ? data : (data.models || []);
+    models.forEach(m => { const o = document.createElement('option'); o.value = m.name; o.textContent = m.name; sel.appendChild(o); });
+}
+
+const PCBA_FIELDS = ['pcba_code','pcb_code','pcb_silkscreen','latest_version','board_name','special_note','pcba_version_compat','compat_description'];
+const PCBA_LABELS = ['PCBA编码','PCB编码','PCB丝印','最新版本','电路板名称','特殊说明','PCBA版本兼容性','兼容性说明'];
+const BL_FIELDS = ['board_mnemonic','board_name','bootloader_version','bootloader_compat_note','no_bootloader_version','no_bootloader_compat_note'];
+const BL_LABELS = ['板卡助记码','电路板名称','底层版本(Bootloader)','底层版本(Bootloader)兼容性说明','底层版本(无Bootloader)','底层版本(无Bootloader)兼容性说明'];
+
+async function bcLoadData() {
+    const model = document.getElementById('bcModel').value;
+    const type = document.getElementById('bcType').value;
+    if (!model) { alert('请选择型号'); return; }
+    const resp = await fetch(`/api/board-compat/${type}?model=${encodeURIComponent(model)}`);
+    const data = await resp.json();
+    const container = document.getElementById('bcDataList');
+    const fields = type === 'pcba' ? PCBA_FIELDS : BL_FIELDS;
+    const labels = type === 'pcba' ? PCBA_LABELS : BL_LABELS;
+    if (!data.results || data.results.length === 0) { container.innerHTML = '<div class="text-secondary text-center py-3">暂无数据</div>'; return; }
+    let html = '<div style="overflow-x:auto;"><table class="table table-sm table-hover" style="font-size:0.85rem;"><thead><tr>';
+    labels.forEach(l => html += `<th>${l}</th>`);
+    html += '<th>操作</th></tr></thead><tbody>';
+    data.results.forEach(r => {
+        html += '<tr>';
+        fields.forEach(f => html += `<td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(r[f]||'')}">${esc(r[f]||'')}</td>`);
+        html += `<td><button class="ivd-btn ivd-btn-sm" style="font-size:0.78rem;" onclick="bcEditRow(${r.id})"><i class="fas fa-edit"></i></button> <button class="ivd-btn ivd-btn-danger ivd-btn-sm" style="font-size:0.78rem;" onclick="bcDeleteRow(${r.id})"><i class="fas fa-trash"></i></button></td>`;
+        html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+    html += `<div class="text-secondary" style="font-size:0.85rem;">共 ${data.total} 条记录</div>`;
+    container.innerHTML = html;
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+function bcShowAddModal() {
+    const model = document.getElementById('bcModel').value;
+    const type = document.getElementById('bcType').value;
+    if (!model) { alert('请选择型号'); return; }
+    const fields = type === 'pcba' ? PCBA_FIELDS : BL_FIELDS;
+    const labels = type === 'pcba' ? PCBA_LABELS : BL_LABELS;
+    let html = '';
+    fields.forEach((f, i) => {
+        const req = (type === 'pcba' && f === 'pcba_code') || (type === 'bootloader' && f === 'board_mnemonic');
+        html += `<div class="mb-3"><label class="form-label fw-bold">${labels[i]}${req?' *':''}</label><input id="bcAdd_${f}" class="form-control" ${req?'required':''}></div>`;
+    });
+    document.getElementById('bcModalBody').innerHTML = html;
+    document.getElementById('bcModalTitle').textContent = type === 'pcba' ? '添加PCBA兼容记录' : '添加底层兼容记录';
+    document.getElementById('bcModal').style.display = 'flex';
+}
+
+function bcCloseModal() { document.getElementById('bcModal').style.display = 'none'; }
+
+async function bcSaveAdd() {
+    const model = document.getElementById('bcModel').value;
+    const type = document.getElementById('bcType').value;
+    const fields = type === 'pcba' ? PCBA_FIELDS : BL_FIELDS;
+    const data = { model };
+    fields.forEach(f => data[f] = document.getElementById(`bcAdd_${f}`).value.trim());
+    try {
+        const resp = await fetch(`/api/board-compat/${type}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data) });
+        const result = await resp.json();
+        if (result.success) { bcCloseModal(); bcLoadData(); }
+        else alert('添加失败: ' + (result.error || '未知错误'));
+    } catch (err) { alert('添加失败: ' + err.message); }
+}
+
+async function bcEditRow(id) {
+    const model = document.getElementById('bcModel').value;
+    const type = document.getElementById('bcType').value;
+    const fields = type === 'pcba' ? PCBA_FIELDS : BL_FIELDS;
+    const labels = type === 'pcba' ? PCBA_LABELS : BL_LABELS;
+    const resp = await fetch(`/api/board-compat/${type}?model=${encodeURIComponent(model)}`);
+    const data = await resp.json();
+    const row = (data.results || []).find(r => r.id === id);
+    if (!row) { alert('记录不存在'); return; }
+    let html = '';
+    fields.forEach((f, i) => {
+        const req = (type === 'pcba' && f === 'pcba_code') || (type === 'bootloader' && f === 'board_mnemonic');
+        html += `<div class="mb-3"><label class="form-label fw-bold">${labels[i]}${req?' *':''}</label><input id="bcEdit_${f}" class="form-control" value="${esc(row[f]||'')}" ${req?'required':''}></div>`;
+    });
+    document.getElementById('bcModalBody').innerHTML = html;
+    document.getElementById('bcModalTitle').textContent = '编辑记录';
+    document.getElementById('bcModal').style.display = 'flex';
+    document.getElementById('bcModalSaveBtn').onclick = async () => {
+        const editData = {};
+        fields.forEach(f => editData[f] = document.getElementById(`bcEdit_${f}`).value.trim());
+        try {
+            const resp = await fetch(`/api/board-compat/${type}/${model}/${id}`, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(editData) });
+            const result = await resp.json();
+            if (result.success) { bcCloseModal(); bcLoadData(); }
+            else alert('更新失败: ' + (result.error || '未知错误'));
+        } catch (err) { alert('更新失败: ' + err.message); }
+    };
+}
+
+async function bcDeleteRow(id) {
+    if (!confirm('确定删除此记录？')) return;
+    const model = document.getElementById('bcModel').value;
+    const type = document.getElementById('bcType').value;
+    try {
+        const resp = await fetch(`/api/board-compat/${type}/${model}/${id}`, { method:'DELETE' });
+        const result = await resp.json();
+        if (result.success) bcLoadData();
+        else alert('删除失败: ' + (result.error || '未知错误'));
+    } catch (err) { alert('删除失败: ' + err.message); }
+}
+
+function bcShowImportModal() {
+    const model = document.getElementById('bcModel').value;
+    const type = document.getElementById('bcType').value;
+    if (!model) { alert('请选择型号'); return; }
+    document.getElementById('bcImportModal').style.display = 'flex';
+}
+
+function bcCloseImportModal() { document.getElementById('bcImportModal').style.display = 'none'; }
+
+async function bcDoImport() {
+    const model = document.getElementById('bcModel').value;
+    const type = document.getElementById('bcType').value;
+    const fileInput = document.getElementById('bcImportFile');
+    if (!fileInput.files.length) { alert('请选择文件'); return; }
+    const fd = new FormData();
+    fd.append('model', model);
+    fd.append('file', fileInput.files[0]);
+    try {
+        const resp = await fetch(`/api/board-compat/${type}/import`, { method:'POST', body:fd });
+        const result = await resp.json();
+        if (result.success) {
+            alert(`导入完成: 成功 ${result.added} 条, 跳过 ${result.skipped} 条` + (result.errors.length ? '\\n错误: ' + result.errors.join('\\n') : ''));
+            bcCloseImportModal();
+            bcLoadData();
+        } else alert('导入失败: ' + (result.error || '未知错误'));
+    } catch (err) { alert('导入失败: ' + err.message); }
+}
+
 </script>
+
+<!-- 电路板兼容表 - 添加/编辑模态框 -->
+<div id="bcModal" class="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);justify-content:center;align-items:center;z-index:9999;padding:20px;backdrop-filter:blur(4px);">
+    <div style="background:white;border-radius:20px;width:min(100%,600px);max-height:90vh;overflow-y:auto;box-shadow:0 25px 80px rgba(0,0,0,0.25);">
+        <div style="padding:20px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #f0f4f8;">
+            <span id="bcModalTitle" style="font-size:1.2rem;font-weight:700;color:#4f46e5;">添加记录</span>
+            <button onclick="bcCloseModal()" style="border:none;background:#f1f5f9;color:#64748b;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1.3rem;display:flex;align-items:center;justify-content:center;">&times;</button>
+        </div>
+        <div id="bcModalBody" style="padding:24px;"></div>
+        <div style="padding:16px 24px;border-top:1px solid #f0f4f8;text-align:right;">
+            <button onclick="bcCloseModal()" class="ivd-btn ivd-btn-sm" style="margin-right:8px;">取消</button>
+            <button id="bcModalSaveBtn" onclick="bcSaveAdd()" class="ivd-btn ivd-btn-success ivd-btn-sm"><i class="fas fa-save me-1"></i> 保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 电路板兼容表 - 批量导入模态框 -->
+<div id="bcImportModal" class="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);justify-content:center;align-items:center;z-index:9999;padding:20px;backdrop-filter:blur(4px);">
+    <div style="background:white;border-radius:20px;width:min(100%,500px);box-shadow:0 25px 80px rgba(0,0,0,0.25);">
+        <div style="padding:20px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #f0f4f8;">
+            <span style="font-size:1.2rem;font-weight:700;color:#4f46e5;">批量导入</span>
+            <button onclick="bcCloseImportModal()" style="border:none;background:#f1f5f9;color:#64748b;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1.3rem;display:flex;align-items:center;justify-content:center;">&times;</button>
+        </div>
+        <div style="padding:24px;">
+            <p class="text-secondary mb-3">支持 .xlsx、.xls、.csv 格式，第一行为表头</p>
+            <input type="file" id="bcImportFile" class="form-control" accept=".xlsx,.xls,.csv">
+        </div>
+        <div style="padding:16px 24px;border-top:1px solid #f0f4f8;text-align:right;">
+            <button onclick="bcCloseImportModal()" class="ivd-btn ivd-btn-sm" style="margin-right:8px;">取消</button>
+            <button onclick="bcDoImport()" class="ivd-btn ivd-btn-success ivd-btn-sm"><i class="fas fa-upload me-1"></i> 导入</button>
+        </div>
+    </div>
+</div>
+
+<!-- 用户管理 - 重置密码模态框 -->
+<div id="resetPwdModal" class="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);justify-content:center;align-items:center;z-index:9999;padding:20px;backdrop-filter:blur(4px);">
+    <div style="background:white;border-radius:20px;width:min(100%,400px);box-shadow:0 25px 80px rgba(0,0,0,0.25);">
+        <div style="padding:20px 24px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #f0f4f8;">
+            <span style="font-size:1.2rem;font-weight:700;color:#1e6f9f;">重置密码</span>
+            <button onclick="document.getElementById('resetPwdModal').style.display='none'" style="border:none;background:#f1f5f9;color:#64748b;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:1.3rem;">&times;</button>
+        </div>
+        <div style="padding:24px;">
+            <input type="hidden" id="resetPwdUserId">
+            <div class="mb-3"><label class="form-label fw-bold">新密码</label><input type="password" id="resetPwdValue" class="form-control" placeholder="至少6位"></div>
+        </div>
+        <div style="padding:16px 24px;border-top:1px solid #f0f4f8;text-align:right;">
+            <button onclick="document.getElementById('resetPwdModal').style.display='none'" class="ivd-btn ivd-btn-sm" style="margin-right:8px;">取消</button>
+            <button onclick="doResetPassword()" class="ivd-btn ivd-btn-success ivd-btn-sm"><i class="fas fa-key me-1"></i> 确认重置</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ========== 用户管理 ==========
+let usersPage = 1;
+const usersPerPage = 20;
+
+async function loadUsers(page) {
+    if (page) usersPage = page;
+    const resp = await fetch(`/api/users?page=${usersPage}&per_page=${usersPerPage}`);
+    const data = await resp.json();
+    const container = document.getElementById('usersList');
+    if (!data.results || data.results.length === 0) {
+        container.innerHTML = '<div class="result-box result-info"><i class="fas fa-info-circle me-1"></i> 暂无用户</div>';
+        document.getElementById('usersPagination').innerHTML = '';
+        return;
+    }
+    let html = '<table class="table table-hover"><thead><tr><th>ID</th><th>用户名</th><th>权限</th><th>状态</th><th>创建时间</th><th>最后登录</th><th>操作</th></tr></thead><tbody>';
+    data.results.forEach(u => {
+        const permLabel = u.permission === 1 ? '<span class="badge bg-danger">超管</span>' : '<span class="badge bg-secondary">普通用户</span>';
+        const statusLabel = u.is_active ? '<span class="badge bg-success">正常</span>' : '<span class="badge bg-warning text-dark">已禁用</span>';
+        const toggleBtn = u.is_active
+            ? `<button class="ivd-btn ivd-btn-warning ivd-btn-sm" onclick="toggleUserActive(${u.id})">禁用</button>`
+            : `<button class="ivd-btn ivd-btn-success ivd-btn-sm" onclick="toggleUserActive(${u.id})">启用</button>`;
+        const permBtn = u.permission === 1
+            ? `<button class="ivd-btn ivd-btn-sm" style="background:#6c757d;color:white;" onclick="updateUserPerm(${u.id}, 0)">降为普通</button>`
+            : `<button class="ivd-btn ivd-btn-sm" style="background:#8b5cf6;color:white;" onclick="updateUserPerm(${u.id}, 1)">升为超管</button>`;
+        html += `<tr><td>${u.id}</td><td>${escapeHtml(u.username)}</td><td>${permLabel}</td><td>${statusLabel}</td><td style="font-size:0.85rem;">${u.created_at||'-'}</td><td style="font-size:0.85rem;">${u.last_login_at||'-'}</td><td style="white-space:nowrap;">${toggleBtn} ${permBtn} <button class="ivd-btn ivd-btn-sm" style="background:#0ea5e9;color:white;" onclick="showResetPwd(${u.id})">重置密码</button> <button class="ivd-btn ivd-btn-danger ivd-btn-sm" onclick="deleteUser(${u.id})">删除</button></td></tr>`;
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+    // Pagination
+    const totalPages = Math.ceil(data.total / usersPerPage);
+    let pagHtml = '';
+    if (totalPages > 1) {
+        for (let i = 1; i <= totalPages; i++) {
+            pagHtml += `<button class="ivd-btn ivd-btn-sm ${i === usersPage ? '' : '" style="background:#e2e8f0;color:#333'}" onclick="loadUsers(${i})">${i}</button>`;
+        }
+    }
+    document.getElementById('usersPagination').innerHTML = pagHtml;
+}
+
+async function toggleUserActive(userId) {
+    const resp = await fetch(`/api/users/${userId}/toggle-active`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({csrf_token: CSRF_TOKEN}) });
+    const data = await resp.json();
+    if (data.success) { loadUsers(); } else { alert(data.error || '操作失败'); }
+}
+
+async function updateUserPerm(userId, perm) {
+    if (!confirm(perm === 1 ? '确认将该用户提升为超管？' : '确认将该用户降为普通用户？')) return;
+    const resp = await fetch(`/api/users/${userId}/permission`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({permission: perm, csrf_token: CSRF_TOKEN}) });
+    const data = await resp.json();
+    if (data.success) { loadUsers(); } else { alert(data.error || '操作失败'); }
+}
+
+async function deleteUser(userId) {
+    if (!confirm('确认删除该用户？此操作不可恢复！')) return;
+    const resp = await fetch(`/api/users/${userId}`, { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({csrf_token: CSRF_TOKEN}) });
+    const data = await resp.json();
+    if (data.success) { loadUsers(); } else { alert(data.error || '操作失败'); }
+}
+
+function showResetPwd(userId) {
+    document.getElementById('resetPwdUserId').value = userId;
+    document.getElementById('resetPwdValue').value = '';
+    document.getElementById('resetPwdModal').style.display = 'flex';
+}
+
+async function doResetPassword() {
+    const userId = document.getElementById('resetPwdUserId').value;
+    const password = document.getElementById('resetPwdValue').value;
+    if (password.length < 6) { alert('密码至少6位'); return; }
+    const resp = await fetch(`/api/users/${userId}/reset-password`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({password, csrf_token: CSRF_TOKEN}) });
+    const data = await resp.json();
+    if (data.success) { document.getElementById('resetPwdModal').style.display = 'none'; alert('密码重置成功'); } else { alert(data.error || '重置失败'); }
+}
+
+function escapeHtml(text) {
+    const d = document.createElement('div'); d.textContent = text; return d.innerHTML;
+}
+</script>
+
 </body>
 </html>

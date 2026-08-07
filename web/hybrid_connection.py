@@ -1,8 +1,12 @@
 import os
+import re
 import socket
 import logging
 
 logger = logging.getLogger(__name__)
+
+_RE_REDIS_URL = re.compile(r'redis://([^:]+):(\d+)')
+_RE_HTTP_URL = re.compile(r'http://([^:]+):(\d+)')
 
 def test_connection(host, port, timeout=2):
     """测试主机连接是否可用"""
@@ -16,13 +20,12 @@ def test_connection(host, port, timeout=2):
         return False
 
 def get_db_host():
-    """智能获取数据库主机地址"""
-    # 优先使用服务名
     service_name = os.environ.get('DB_HOST', 'postgres')
     fallback_ip = os.environ.get('DB_HOST_IP', '172.28.0.10')
     port = int(os.environ.get('DB_PORT', 5432))
-    
-    # 测试服务名连接
+    if os.environ.get('DOCKER_ENV') == 'true' or os.path.exists('/.dockerenv'):
+        logger.info(f"✅ Docker环境，使用服务名连接数据库: {service_name}")
+        return service_name
     if test_connection(service_name, port):
         logger.info(f"✅ 使用服务名连接数据库: {service_name}")
         return service_name
@@ -31,37 +34,32 @@ def get_db_host():
         return fallback_ip
 
 def get_redis_url():
-    """智能获取Redis URL"""
-    # 优先使用服务名
     primary_url = os.environ.get('REDIS_URL', 'redis://redis:6379/0')
     fallback_url = os.environ.get('REDIS_URL_IP', 'redis://172.28.0.11:6379/0')
-    
-    # 从URL提取主机和端口
-    import re
-    match = re.search(r'redis://([^:]+):(\d+)', primary_url)
+    if os.environ.get('DOCKER_ENV') == 'true' or os.path.exists('/.dockerenv'):
+        logger.info(f"✅ Docker环境，使用服务名连接Redis")
+        return primary_url
+    match = _RE_REDIS_URL.search(primary_url)
     if match:
         host, port = match.groups()
         if test_connection(host, int(port)):
             logger.info(f"✅ 使用服务名连接Redis: {host}")
             return primary_url
-    
     logger.warning(f"⚠️  服务名连接失败，使用固定IP")
     return fallback_url
 
 def get_go_parser_url():
-    """智能获取Go Parser URL"""
     primary_url = os.environ.get('GO_PARSER_URL', 'http://go-parser:8082/parse')
     fallback_url = os.environ.get('GO_PARSER_URL_IP', 'http://172.28.0.12:8082/parse')
-    
-    # 从URL提取主机和端口
-    import re
-    match = re.search(r'http://([^:]+):(\d+)', primary_url)
+    if os.environ.get('DOCKER_ENV') == 'true' or os.path.exists('/.dockerenv'):
+        logger.info(f"✅ Docker环境，使用服务名连接Go Parser")
+        return primary_url
+    match = _RE_HTTP_URL.search(primary_url)
     if match:
         host, port = match.groups()
         if test_connection(host, int(port)):
             logger.info(f"✅ 使用服务名连接Go Parser: {host}")
             return primary_url
-    
     logger.warning(f"⚠️  服务名连接失败，使用固定IP")
     return fallback_url
 

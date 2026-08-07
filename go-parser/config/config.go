@@ -10,7 +10,6 @@ type Config struct {
     DBUser     string
     DBPassword string
     DBName     string
-    RedisURL   string
     ServerPort string
 }
 

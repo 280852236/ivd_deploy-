@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IVD 分析报告 - 层级视图</title>
     <!-- Font Awesome 6 (已有) -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+    <link rel="dns-prefetch" href="https://cdn.jsdelivr.net">
+    <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- 新增 Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -29,6 +33,7 @@
             --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
             --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
             --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+            --gray-500: #6b7280;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
@@ -74,7 +79,7 @@
             background: rgba(255,255,255,0.2); 
             padding: 4px 12px; 
             border-radius: 20px;
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(4px);
             border: 1px solid rgba(255,255,255,0.1);
         }
         .topbar a { 
@@ -128,8 +133,7 @@
         }
         .main { display: flex; flex: 1; overflow: hidden; }
         .left-panel {
-            width: 340px; 
-            min-width: 280px; 
+            width: clamp(260px, 25vw, 380px); min-width: 240px; 
             background: white; 
             display: flex;
             flex-direction: column; 
@@ -486,6 +490,10 @@
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             box-shadow: 0 2px 8px rgba(0,168,204,0.25);
         }
+        .btn-fault-cooling { background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%) !important; box-shadow: 0 2px 8px rgba(14,165,233,0.25) !important; }
+        .btn-fault-sample { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important; box-shadow: 0 2px 8px rgba(245,158,11,0.25) !important; }
+        .btn-fault-reagent { background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%) !important; box-shadow: 0 2px 8px rgba(139,92,246,0.25) !important; }
+        .btn-fault-gripper { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important; box-shadow: 0 2px 8px rgba(239,68,68,0.25) !important; }
         .btn-modal:hover { 
             transform: translateY(-2px) scale(1.05);
             box-shadow: 0 6px 16px rgba(0,168,204,0.4);
@@ -633,7 +641,7 @@
             align-items: center;
             z-index: 9999;
             padding: 20px;
-            backdrop-filter: blur(8px);
+            backdrop-filter: blur(3px);
         }
         .modal-card {
             background: white;
@@ -700,6 +708,9 @@
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.7; transform: scale(1.1); }
         }
+        @media (max-width: 1024px) {
+            .left-panel { width: clamp(220px, 30vw, 320px); }
+        }
         @media (max-width: 768px) {
             .main { flex-direction: column; }
             .left-panel { width: 100%; min-width: 0; max-height: 40vh; }
@@ -756,12 +767,15 @@
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.5);
+            background: transparent;
             justify-content: center;
             align-items: flex-start;
             z-index: 10000;
             padding-top: 80px;
-            backdrop-filter: blur(4px);
+            pointer-events: none;
+        }
+        .search-dialog-overlay > .search-dialog {
+            pointer-events: auto;
         }
         .search-dialog {
             background: white;
@@ -968,8 +982,11 @@
             border-radius: 2px;
         }
         .highlight-current {
-            background: #fbbf24;
+            background: #fbbf24 !important;
+            color: #000 !important;
             border-radius: 2px;
+            box-shadow: 0 0 0 2px #f59e0b;
+            font-weight: bold;
         }
         
         /* 底部查询结果面板 */
@@ -1042,6 +1059,8 @@
             margin-bottom: 8px;
             overflow: visible;
             position: relative;
+            display: flex;
+            flex-direction: column;
         }
         .result-group-header {
             padding: 8px 12px;
@@ -1051,6 +1070,7 @@
             align-items: center;
             cursor: pointer;
             user-select: none;
+            flex-shrink: 0;
         }
         .result-group-title {
             font-weight: 600;
@@ -1089,14 +1109,15 @@
         }
         .result-close-btn:hover { background: #fecaca; }
         .result-group-resize {
-            height: 8px;
+            height: 10px;
             background: #e2e8f0;
             cursor: ns-resize;
             display: flex;
             align-items: center;
             justify-content: center;
             position: relative;
-            z-index: 1;
+            z-index: 10;
+            flex-shrink: 0;
         }
         .result-group-resize::after {
             content: '';
@@ -1115,7 +1136,7 @@
             padding: 8px;
             max-height: 300px;
             overflow-y: auto;
-
+            overflow-x: hidden;
         }
         .result-group-content.collapsed {
             max-height: 0;
@@ -1173,6 +1194,9 @@
                 <i class="fas fa-upload"></i> 快速上传
                 <input type="file" id="quickFile" style="display:none;" accept=".txt,.log,.md,.csv,.zip" multiple>
             </label>
+            <div id="quickUploadProgress" style="display:none;width:80px;height:4px;background:rgba(255,255,255,0.2);border-radius:2px;overflow:hidden;">
+                <div id="quickUploadBar" style="width:0%;height:100%;background:#38bdf8;border-radius:2px;transition:width 0.3s;"></div>
+            </div>
             <a href="/"><i class="fas fa-arrow-left"></i> 返回上传</a>
         </div>
     </div>
@@ -1203,6 +1227,10 @@
                         <div class="file-meta" id="fileMeta">-</div>
                     </div>
                     <div style="display:flex;gap:8px;">
+                        <button class="btn-modal btn-fault-cooling fault-btn" style="display:none;" onclick="openFaultModal('cooling')"><i class="fas fa-snowflake"></i> 制冷故障</button>
+                        <button class="btn-modal btn-fault-sample fault-btn" style="display:none;" onclick="openFaultModal('sample')"><i class="fas fa-vial"></i> 样本空吸故障</button>
+                        <button class="btn-modal btn-fault-reagent fault-btn" style="display:none;" onclick="openFaultModal('reagent')"><i class="fas fa-flask"></i> 试剂空吸故障</button>
+                        <button class="btn-modal btn-fault-gripper fault-btn" style="display:none;" onclick="openFaultModal('gripper')"><i class="fas fa-hand-paper"></i> 抓手运行故障</button>
                         <button class="btn-modal" onclick="openSearchDialog()"><i class="fas fa-search"></i> 查询</button>
                         <button class="btn-modal" onclick="openFullModal()"><i class="fas fa-expand"></i> 弹窗查看全文</button>
                     </div>
@@ -1361,6 +1389,24 @@ fetch('/api/csrf-token').then(r=>r.json()).then(d=>{CSRF_TOKEN=d.csrf_token;}).c
 const ANALYSIS_ID = '{{ analysis_id }}';
 let _embeddedData = null;
 try { _embeddedData = {{ embedded_data | safe }}; } catch(e) {}
+const _fileCacheMap = new Map();
+const FILE_CACHE_MAX = 15;
+const MAX_MODAL_DISPLAY = 500;
+const MAX_SEARCH_DISPLAY = 1000;
+function fileCacheGet(key) {
+    if (!_fileCacheMap.has(key)) return undefined;
+    const v = _fileCacheMap.get(key);
+    _fileCacheMap.delete(key);
+    _fileCacheMap.set(key, v);
+    return v;
+}
+function fileCacheSet(key, value) {
+    if (_fileCacheMap.has(key)) _fileCacheMap.delete(key);
+    _fileCacheMap.set(key, value);
+    while (_fileCacheMap.size > FILE_CACHE_MAX) {
+        _fileCacheMap.delete(_fileCacheMap.keys().next().value);
+    }
+}
 let allDateGroups = [];
 let currentFileName = null;
 let searchQuery = '';
@@ -1426,9 +1472,33 @@ document.getElementById('quickFile').addEventListener('change', async function(e
     
     const originalTreeContent = document.getElementById('leftTree').innerHTML;
     document.getElementById('leftTree').innerHTML = '<div class="empty-state"><div class="icon">⏳</div><div>正在智能分析...</div></div>';
+    document.getElementById('quickUploadProgress').style.display = 'block';
     
     try {
-        const resp = await fetchWithTimeout('/api/analyze', { method: 'POST', body: formData }, 300000);
+        const resp = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            const timerId = setTimeout(() => { xhr.abort(); reject(new Error('请求超时')); }, 300000);
+            xhr.upload.onprogress = function(e) {
+                if (e.lengthComputable) {
+                    const pct = Math.round((e.loaded / e.total) * 100);
+                    const bar = document.getElementById('quickUploadBar');
+                    if (bar) bar.style.width = pct + '%';
+                }
+            };
+            xhr.onload = function() {
+                clearTimeout(timerId);
+                try {
+                    const data = JSON.parse(xhr.responseText);
+                    resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, json: () => Promise.resolve(data), text: () => Promise.resolve(xhr.responseText) });
+                } catch(e) {
+                    resolve({ ok: xhr.status >= 200 && xhr.status < 300, status: xhr.status, json: () => Promise.reject(e), text: () => Promise.resolve(xhr.responseText) });
+                }
+            };
+            xhr.onerror = function() { clearTimeout(timerId); reject(new Error('Failed to fetch')); };
+            xhr.onabort = function() { clearTimeout(timerId); const e = new Error('请求超时'); e.name = 'TimeoutError'; reject(e); };
+            xhr.open('POST', '/api/analyze');
+            xhr.send(formData);
+        });
         if (!resp.ok) {
             const text = await resp.text();
             try {
@@ -1442,21 +1512,26 @@ document.getElementById('quickFile').addEventListener('change', async function(e
         if (data.error) { alert('上传失败: ' + data.error); document.getElementById('leftTree').innerHTML = originalTreeContent; return; }
         
         if (data.status === 'accepted' && data.analysis_id) {
-            document.getElementById('leftTree').innerHTML = '<div class="empty-state"><div class="icon">⏳</div><div>任务已提交，正在智能分析...</div></div>';
+            document.getElementById('leftTree').innerHTML = '<div class="empty-state"><div class="icon">⏳</div><div id="pollMsg">任务已提交，正在智能分析...</div></div>';
             let pollCount = 0;
-            function quickPoll() {
-                pollCount++;
-                if (pollCount > 600) { alert('分析超时，请重试'); document.getElementById('leftTree').innerHTML = originalTreeContent; return; }
-                fetch(`/api/task_status/${data.analysis_id}`)
-                    .then(r => r.json())
-                    .then(d => {
-                        if (d.status === 'completed' && d.redirect_url) { window.location.href = d.redirect_url; }
-                        else if (d.status === 'failed') { alert('分析失败: ' + (d.error || '未知错误')); document.getElementById('leftTree').innerHTML = originalTreeContent; }
-                        else { document.getElementById('leftTree').innerHTML = `<div class="empty-state"><div class="icon">⏳</div><div>正在智能分析... (已等待 ${pollCount} 秒)</div></div>`; setTimeout(quickPoll, 1000); }
-                    })
-                    .catch(() => { setTimeout(quickPoll, 2000); });
-            }
-            setTimeout(quickPoll, 1000);
+            let sseOk = false;
+            try {
+                const es = new EventSource(`/api/task_events/${data.analysis_id}`);
+                sseOk = true;
+                const pollEl = document.getElementById('pollMsg');
+                es.onmessage = function(e) {
+                    pollCount++;
+                    try {
+                        const d = JSON.parse(e.data);
+                        if (d.status === 'completed' && d.redirect_url) { es.close(); window.location.href = d.redirect_url; }
+                        else if (d.status === 'failed') { es.close(); alert('分析失败: ' + (d.error || '未知错误')); document.getElementById('leftTree').innerHTML = originalTreeContent; }
+                        else if (d.status === 'timeout') { es.close(); alert('分析超时，请重试'); document.getElementById('leftTree').innerHTML = originalTreeContent; }
+                        else { if (pollEl) pollEl.textContent = `正在智能分析... (已等待 ${pollCount} 秒)`; }
+                    } catch(err) { if (pollEl) pollEl.textContent = `正在智能分析... (已等待 ${pollCount} 秒)`; }
+                };
+                es.onerror = function() { es.close(); if (pollEl) pollEl.textContent = 'SSE断开，切换轮询...'; setTimeout(function() { quickPollFallback(data.analysis_id, pollCount); }, 1000); };
+            } catch(err) { }
+            if (!sseOk) { setTimeout(function() { quickPollFallback(data.analysis_id, 0); }, 1000); }
             return;
         }
         
@@ -1469,19 +1544,42 @@ document.getElementById('quickFile').addEventListener('change', async function(e
         else { message = `请求失败: ${err.message}`; }
         alert(message);
         document.getElementById('leftTree').innerHTML = originalTreeContent;
+    } finally {
+        document.getElementById('quickUploadProgress').style.display = 'none';
     }
 });
+
+function quickPollFallback(analysisId, startCount) {
+    let pollCount = startCount || 0, pollInterval = 1000;
+    function poll() {
+        pollCount++;
+        if (pollCount > 600) { alert('分析超时，请重试'); window.location.reload(); return; }
+        fetch(`/api/task_status/${analysisId}`)
+            .then(r => r.json())
+            .then(d => {
+                if (d.status === 'completed' && d.redirect_url) { window.location.href = d.redirect_url; }
+                else if (d.status === 'failed') { alert('分析失败: ' + (d.error || '未知错误')); window.location.reload(); }
+                else { const pollEl = document.getElementById('pollMsg'); if (pollEl) pollEl.textContent = `正在智能分析... (已等待 ${pollCount} 秒)`; pollInterval = Math.min(pollInterval * 1.5, 10000); setTimeout(poll, pollInterval); }
+            })
+            .catch(() => { setTimeout(poll, Math.min(pollInterval * 2, 20000)); });
+    }
+    setTimeout(poll, 1000);
+}
 
 function buildDateTree(dateGroups) {
     return dateGroups || [];
 }
 
 function renderDateGroupedTree(dateGroups) {
-    console.log('renderDateGroupedTree called with', dateGroups && dateGroups.length, dateGroups);
+    // renderDateGroupedTree called
     const tree = document.getElementById('leftTree');
     tree.innerHTML = '';
     if (!dateGroups || dateGroups.length === 0) {
-        tree.innerHTML = '<div class="empty-state"><div class="icon">📭</div><div>暂无匹配文件</div></div>';
+        if (_embeddedData && _embeddedData.from_pg) {
+            tree.innerHTML = '<div class="empty-state"><div class="icon">⏰</div><div>详细分析数据已过期</div><div style="color:#94a3b8;font-size:0.85rem;margin-top:8px;">摘要信息仍可查看，文件级详情需重新分析</div></div>';
+        } else {
+            tree.innerHTML = '<div class="empty-state"><div class="icon">📭</div><div>暂无匹配文件</div></div>';
+        }
         return;
     }
 
@@ -1515,7 +1613,7 @@ function renderDateGroupedTree(dateGroups) {
             const sizeKB = (f.size / 1024).toFixed(0);
             const tagsHtml = (f.types || []).map(t => {
                 const label = t === 'fault' ? '故障' : t === 'sample' ? '样本' : t === 'reagent' ? '试剂' : t === 'receive' ? '接收' : '';
-                return `<span class="type-tag type-tag-${t}" onclick="event.stopPropagation(); filterByType('${t}')" title="点击筛选${label}文件">${label}</span>`;
+                return `<span class="type-tag type-tag-${t}" onclick="event.stopPropagation(); filterByType('${t}', event)" title="点击筛选${label}文件">${label}</span>`;
             }).join('');
             
             const displayName = f.name.split('/').pop();
@@ -1602,11 +1700,11 @@ async function loadAnalysisData() {
 
     const s = data.summary || {};
     document.getElementById('summaryRow').innerHTML = `
-        <span class="tag tag-fault" onclick="filterByType('fault')" title="点击筛选故障文件"><i class="fas fa-bug"></i> 故障 ${s.fault||0}</span>
-        <span class="tag tag-sample" onclick="filterByType('sample')" title="点击筛选样本空吸文件"><i class="fas fa-vial"></i> 样本 ${s.sample||0}</span>
-        <span class="tag tag-reagent" onclick="filterByType('reagent')" title="点击筛选试剂空吸文件"><i class="fas fa-flask"></i> 试剂 ${s.reagent||0}</span>
-        <span class="tag tag-receive" onclick="filterByType('receive')" title="点击筛选接收数据文件"><i class="fas fa-download"></i> 接收 ${s.receive||0}</span>
-        <span class="tag tag-all" onclick="filterByType('all')" title="显示全部文件"><i class="fas fa-list"></i> 全部</span>
+        <span class="tag tag-fault" onclick="filterByType('fault', event)" title="点击筛选故障文件"><i class="fas fa-bug"></i> 故障 ${s.fault||0}</span>
+        <span class="tag tag-sample" onclick="filterByType('sample', event)" title="点击筛选样本空吸文件"><i class="fas fa-vial"></i> 样本 ${s.sample||0}</span>
+        <span class="tag tag-reagent" onclick="filterByType('reagent', event)" title="点击筛选试剂空吸文件"><i class="fas fa-flask"></i> 试剂 ${s.reagent||0}</span>
+        <span class="tag tag-receive" onclick="filterByType('receive', event)" title="点击筛选接收数据文件"><i class="fas fa-download"></i> 接收 ${s.receive||0}</span>
+        <span class="tag tag-all" onclick="filterByType('all', event)" title="显示全部文件"><i class="fas fa-list"></i> 全部</span>
     `;
     
     let displayedFileCount = 0;
@@ -1621,7 +1719,7 @@ async function loadAnalysisData() {
         document.getElementById('metaFile').textContent = ' (已加载 ' + displayedFileCount + '/' + zipTotalCandidates + ' 文件)';
     }
     } catch (err) {
-        console.error('加载分析数据失败:', err);
+        console.error('加载分析数据失败:', err.message);
         document.getElementById('leftTree').innerHTML = `<div class="empty-state"><div class="icon">❌</div><div>加载失败: ${err.message}</div></div>`;
     }
 }
@@ -1662,11 +1760,11 @@ async function loadMoreFiles() {
 
         const s = data.summary || {};
         document.getElementById('summaryRow').innerHTML = `
-            <span class="tag tag-fault" onclick="filterByType('fault')" title="点击筛选故障文件"><i class="fas fa-bug"></i> 故障 ${s.fault||0}</span>
-            <span class="tag tag-sample" onclick="filterByType('sample')" title="点击筛选样本空吸文件"><i class="fas fa-vial"></i> 样本 ${s.sample||0}</span>
-            <span class="tag tag-reagent" onclick="filterByType('reagent')" title="点击筛选试剂空吸文件"><i class="fas fa-flask"></i> 试剂 ${s.reagent||0}</span>
-            <span class="tag tag-receive" onclick="filterByType('receive')" title="点击筛选接收数据文件"><i class="fas fa-download"></i> 接收 ${s.receive||0}</span>
-            <span class="tag tag-all" onclick="filterByType('all')" title="显示全部文件"><i class="fas fa-list"></i> 全部</span>
+            <span class="tag tag-fault" onclick="filterByType('fault', event)" title="点击筛选故障文件"><i class="fas fa-bug"></i> 故障 ${s.fault||0}</span>
+            <span class="tag tag-sample" onclick="filterByType('sample', event)" title="点击筛选样本空吸文件"><i class="fas fa-vial"></i> 样本 ${s.sample||0}</span>
+            <span class="tag tag-reagent" onclick="filterByType('reagent', event)" title="点击筛选试剂空吸文件"><i class="fas fa-flask"></i> 试剂 ${s.reagent||0}</span>
+            <span class="tag tag-receive" onclick="filterByType('receive', event)" title="点击筛选接收数据文件"><i class="fas fa-download"></i> 接收 ${s.receive||0}</span>
+            <span class="tag tag-all" onclick="filterByType('all', event)" title="显示全部文件"><i class="fas fa-list"></i> 全部</span>
         `;
 
         renderDateGroupedTree(allDateGroups);
@@ -1679,7 +1777,7 @@ async function loadMoreFiles() {
         });
         document.getElementById('metaFile').textContent = ' (已加载 ' + displayedFileCount + '/' + zipTotalCandidates + ' 文件)';
     } catch (err) {
-        console.error('加载更多文件失败:', err);
+        console.error('加载更多文件失败:', err.message);
         alert('加载更多失败: ' + err.message);
     } finally {
         isLoadingMoreFiles = false;
@@ -1690,8 +1788,9 @@ async function loadMoreFiles() {
 // 文件类型筛选
 let currentFilterType = 'all';
 
-function filterByType(type) {
-    console.log('filterByType called:', type);
+function filterByType(type, evt) {
+    evt = evt || window.event;
+    // filterByType called
     
     // 防止重复点击
     if (currentFilterType === type && type !== 'all') {
@@ -1712,12 +1811,14 @@ function filterByType(type) {
     });
     
     // 激活当前标签
-    const currentTag = event.target.closest('.tag');
-    currentTag.classList.add('active');
-    currentTag.style.transform = 'scale(1.15)';
-    setTimeout(() => {
-        currentTag.style.transform = '';
-    }, 200);
+    const currentTag = evt.target.closest('.tag');
+    if (currentTag) {
+        currentTag.classList.add('active');
+        currentTag.style.transform = 'scale(1.15)';
+        setTimeout(() => {
+            currentTag.style.transform = '';
+        }, 200);
+    }
     
     // 筛选文件
     const filteredGroups = [];
@@ -1753,25 +1854,23 @@ function filterByType(type) {
 }
 
 function selectFile(filename) {
-    console.log('selectFile called', filename);
     currentFileName = filename;
-    document.querySelectorAll('.file-node.active').forEach(el => el.classList.remove('active'));
-    const nodes = document.querySelectorAll('.file-node');
-    let foundNode = false;
-    nodes.forEach(node => {
-        if (node.dataset.filename === filename) {
-            node.classList.add('active');
-            node.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            foundNode = true;
-        }
-    });
-    console.log('selectFile foundNode', foundNode, 'nodesCount', nodes.length);
+    const showFault = filename && filename.includes('接收数据记录');
+    document.querySelectorAll('.fault-btn').forEach(b => b.style.display = showFault ? '' : 'none');
+    const prevActive = document.querySelector('.file-node.active');
+    if (prevActive) prevActive.classList.remove('active');
+    const targetNode = document.querySelector(`.file-node[data-filename="${CSS.escape(filename)}"]`);
+    if (targetNode) {
+        targetNode.classList.add('active');
+        targetNode.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
     document.getElementById('rightPlaceholder').style.display = 'none';
     document.getElementById('rightContent').style.display = 'flex';
     document.getElementById('fileTitle').textContent = '📄 ' + filename;
-    if (window._fileCache && window._fileCache[filename]) {
-        document.getElementById('fileMeta').textContent = window._fileCache[filename]._meta;
-        renderFileContent(window._fileCache[filename]);
+    const cached = fileCacheGet(filename);
+    if (cached) {
+        document.getElementById('fileMeta').textContent = cached._meta;
+        renderFileContent(cached);
         return;
     }
     document.getElementById('fileMeta').textContent = '加载中...';
@@ -1779,21 +1878,59 @@ function selectFile(filename) {
     loadFileContent(filename);
 }
 
-async function loadFileContent(filename) {
-    try {
-        const resp = await fetch(`/api/analysis/${ANALYSIS_ID}/file?name=${encodeURIComponent(filename)}`);
-        if (!resp.ok) {
-            document.getElementById('rightBody').innerHTML = `<div class="empty-state"><div class="icon">❌</div><div>文件加载失败</div></div>`;
-            return;
-        }
+ async function loadFileContent(filename) {
+     try {
+         const resp = await fetch(`/api/analysis/${ANALYSIS_ID}/file?name=${encodeURIComponent(filename)}`);
+         if (!resp.ok) {
+             let errMsg = '文件加载失败';
+             try { const ed = await resp.json(); if (ed.error) errMsg = ed.error; } catch(e) {}
+             if (resp.status === 410 || errMsg.includes('已清理') || errMsg.includes('过期')) {
+                 document.getElementById('rightBody').innerHTML = `<div class="empty-state"><div class="icon">⏰</div><div>分析结果已过期</div><div style="font-size:0.85rem;color:#94a3b8;margin-top:8px;">缓存已清理，请重新上传文件进行分析</div></div>`;
+             } else {
+                 document.getElementById('rightBody').innerHTML = `<div class="empty-state"><div class="icon">❌</div><div>${errMsg}</div></div>`;
+             }
+             return;
+         }
         const data = await resp.json();
-        if (!window._fileCache) window._fileCache = {};
         data._meta = `${(data.size / 1024).toFixed(0)} KB | ${data.analysis.length} 条匹配`;
-        window._fileCache[filename] = data;
+        fileCacheSet(filename, data);
         document.getElementById('fileMeta').textContent = data._meta;
         renderFileContent(data);
+        _updateFileNodeIcon(filename, data);
     } catch (err) {
         document.getElementById('rightBody').innerHTML = `<div class="empty-state"><div class="icon">❌</div><div>加载失败: ${err.message}</div></div>`;
+    }
+}
+function _updateFileNodeIcon(filename, data) {
+    const node = document.querySelector(`.file-node[data-filename="${CSS.escape(filename)}"]`);
+    if (!node) return;
+    const iconSpan = node.querySelector('.icon i');
+    if (!iconSpan) return;
+    const types = Array.from(node.querySelectorAll('.type-tag')).map(t => t.classList.contains('type-tag-sample') ? 'sample' : t.classList.contains('type-tag-reagent') ? 'reagent' : t.classList.contains('type-tag-fault') ? 'fault' : t.classList.contains('type-tag-receive') ? 'receive' : '');
+    const isAspirationFile = types.includes('sample') || types.includes('reagent');
+    const hasAspirationMatch = data.analysis && data.analysis.some(item => item.type === 'keyword_match' && (item.keywords || []).some(kw => kw && kw.includes('空吸')));
+    const hasFault = data.has_fault || false;
+    const isReceiveFile = types.includes('receive');
+    let alertBell = node.querySelector('.fname .fa-bell');
+    if (hasFault) {
+        iconSpan.className = 'fas fa-bug';
+        iconSpan.style.color = '#dc2626';
+        if (alertBell) alertBell.remove();
+    } else if (isAspirationFile && hasAspirationMatch) {
+        iconSpan.className = 'fas fa-exclamation-triangle';
+        iconSpan.style.color = '#dc2626';
+        const fnameSpan = node.querySelector('.fname');
+        if (fnameSpan && !alertBell) {
+            fnameSpan.insertAdjacentHTML('beforeend', '<i class="fas fa-bell" style="color:#dc2626;margin-left:6px;animation:pulse 2s infinite;"></i>');
+        }
+    } else if (isReceiveFile) {
+        iconSpan.className = 'fas fa-download';
+        iconSpan.style.color = '#15803d';
+        if (alertBell) alertBell.remove();
+    } else {
+        iconSpan.className = 'fas fa-file-alt';
+        iconSpan.style.color = '#64748b';
+        if (alertBell) alertBell.remove();
     }
 }
 function renderFileContent(data) {
@@ -1891,7 +2028,27 @@ function renderFileContent(data) {
                 </div>`;
             }
 
+            _fullFileContent = data.content || '';
             body.innerHTML = html;
+            const truncMarker = document.getElementById('htmlTruncationMarker');
+            if (truncMarker && data.content) {
+                const totalLines = parseInt(truncMarker.dataset.total) || 0;
+                const renderedLines = parseInt(truncMarker.dataset.rendered) || 5000;
+                const allLines = data.content.split('\n');
+                _pendingLines = allLines.slice(renderedLines);
+                _renderedLineCount = renderedLines;
+                _totalLineCount = totalLines;
+                _pendingAdviceMap = {};
+                if (data.analysis) {
+                    data.analysis.forEach(item => {
+                        if (item.type === 'motor_status_match' && item.original_text && item.advice) {
+                            const orig = item.original_text.trim();
+                            if (orig && !_pendingAdviceMap[orig]) _pendingAdviceMap[orig] = item.advice;
+                        }
+                    });
+                }
+                truncMarker.onclick = loadMoreLines;
+            }
             return;  // 使用后端生成的内容，直接结束
         }
 
@@ -1910,20 +2067,31 @@ function renderFileContent(data) {
             }
         });
 
-        const lines = content.split('\\n');
+        const lines = content.split('\n');
+        const MAX_RENDER_LINES = 5000;
+        const totalLines = lines.length;
+        const renderLines = lines.slice(0, MAX_RENDER_LINES);
         let html = `
             <div class="content-section">
-                <div class="section-label">📝 原始文档内容</div>
+                <div class="section-label">📝 原始文档内容${totalLines > MAX_RENDER_LINES ? ` <span style="color:#94a3b8;font-size:0.8em;">(显示前${MAX_RENDER_LINES}行/共${totalLines}行)</span>` : ''}</div>
                 <div class="raw-content" style="white-space:pre-wrap; word-break:break-word; font-family:monospace; font-size:1rem; line-height:1.6; background:#fafbfc; padding:12px; border-radius:6px; border:1px solid #e8ecf1;">
         `;
-        lines.forEach(line => {
+        _fullFileContent = data.content || '';
+        _pendingLines = lines.slice(MAX_RENDER_LINES);
+        _pendingAdviceMap = adviceMap;
+        _renderedLineCount = Math.min(lines.length, MAX_RENDER_LINES);
+        _totalLineCount = lines.length;
+        renderLines.forEach(line => {
             const trimmed = line.trim();
-            html += escapeHtml(line) + '\\n';
+            html += escapeHtml(line) + '\n';
             if (trimmed && adviceMap[trimmed]) {
                 html += '<span style="color:#155724; font-weight:600; display:block; margin-left:1.2em;">诊断建议：</span>';
-                html += '<span style="display:block; margin-left:2.4em; color:#2d6a4f;">' + escapeHtml(adviceMap[trimmed]) + '</span>\\n';
+                html += '<span style="display:block; margin-left:2.4em; color:#2d6a4f;">' + escapeHtml(adviceMap[trimmed]) + '</span>\n';
             }
         });
+        if (totalLines > MAX_RENDER_LINES) {
+            html += `<div id="loadMoreHint" style="text-align:center;padding:12px;color:#6366f1;font-size:0.85rem;border-top:1px dashed #c7d2fe;margin-top:8px;cursor:pointer;" onclick="loadMoreLines()"><i class="fas fa-angle-double-down" style="margin-right:6px;"></i>加载更多行 <span id="loadMoreInfo">(已渲染 ${MAX_RENDER_LINES} / 共${totalLines} 行)</span></div>`;
+        }
         html += `</div></div>`;
 
         const sampleMatches = analysis.filter(item => 
@@ -1978,7 +2146,7 @@ function renderFileContent(data) {
 
         body.innerHTML = html;
     } catch (err) {
-        console.error('渲染文件内容失败:', err);
+        console.error('渲染文件内容失败:', err.message);
         body.innerHTML = `<div class="empty-state"><div class="icon">❌</div><div>渲染失败: ${escapeHtml(err.message)}</div></div>`;
     }
 }
@@ -1987,8 +2155,9 @@ function openFullModal() {
     if (!currentFileName) return;
     const modal = document.getElementById('fullModal');
     document.getElementById('modalTitle').textContent = '📄 ' + currentFileName;
-    const bodyContent = document.getElementById('rightBody').innerHTML;
-    document.getElementById('modalBody').innerHTML = bodyContent;
+        const src = document.getElementById('rightBody');
+        if (src.innerHTML.length > 5000000) { document.getElementById('modalBody').innerHTML = '<div style="padding:20px;color:#94a3b8;">文件过大，请使用搜索功能查看</div>'; }
+        else { document.getElementById('modalBody').innerHTML = src.innerHTML; }
     modal.style.display = 'flex';
 }
 
@@ -1996,15 +2165,292 @@ function closeFullModal() {
     document.getElementById('fullModal').style.display = 'none';
 }
 
+let _pendingLines = [];
+let _pendingAdviceMap = {};
+let _fullFileContent = '';
+let _renderedLineCount = 0;
+let _totalLineCount = 0;
+const _LOAD_MORE_BATCH = 8000;
+
+function loadMoreLines() {
+    const rawEl = document.querySelector('.raw-content');
+    if (!rawEl || _pendingLines.length === 0) return;
+    let hintEl = document.getElementById('loadMoreHint') || document.getElementById('htmlTruncationMarker');
+    if (!hintEl) return;
+    if (hintEl.id === 'htmlTruncationMarker') hintEl.id = 'loadMoreHint';
+    hintEl.innerHTML = '<i class="fas fa-spinner fa-spin" style="margin-right:6px;"></i>加载中...';
+    setTimeout(() => {
+        const batch = _pendingLines.splice(0, _LOAD_MORE_BATCH);
+        const fragParts = [];
+        batch.forEach(line => {
+            const trimmed = line.trim();
+            fragParts.push(escapeHtml(line), '\n');
+            if (trimmed && _pendingAdviceMap[trimmed]) {
+                fragParts.push('<span style="color:#155724; font-weight:600; display:block; margin-left:1.2em;">诊断建议：</span>');
+                fragParts.push('<span style="display:block; margin-left:2.4em; color:#2d6a4f;">', escapeHtml(_pendingAdviceMap[trimmed]), '</span>\n');
+            }
+        });
+        _renderedLineCount += batch.length;
+        hintEl = document.getElementById('loadMoreHint');
+        if (hintEl) {
+            if (_pendingLines.length > 0) {
+                hintEl.innerHTML = '<i class="fas fa-angle-double-down" style="margin-right:6px;"></i>加载更多行 <span id="loadMoreInfo">(已渲染 ' + _renderedLineCount + ' / 共' + _totalLineCount + ' 行)</span>';
+                hintEl.onclick = loadMoreLines;
+            } else {
+                hintEl.innerHTML = '<i class="fas fa-check-circle" style="margin-right:6px;color:#22c55e;"></i>全部加载完成 (共' + _totalLineCount + ' 行)';
+                hintEl.onclick = null;
+                hintEl.style.cursor = 'default';
+            }
+        }
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = fragParts.join('');
+        while (tempDiv.firstChild) {
+            rawEl.insertBefore(tempDiv.firstChild, hintEl);
+        }
+    }, 50);
+}
+
+const FAULT_KEYWORDS = {
+    cooling: { title: '制冷故障', icon: 'fa-snowflake', color: '#0ea5e9', keywords: ['制冷', '温度', '冷凝', '压缩机', '散热', '恒温', 'cooling', 'temperature', 'temp', 'TEC', 'peltier'] },
+    sample: { title: '样本空吸故障', icon: 'fa-vial', color: '#f59e0b', keywords: ['样本空吸', '样本不足', '吸样', 'sample', '空吸', 'sample aspirate', '样本吸'] },
+    reagent: { title: '试剂空吸故障', icon: 'fa-flask', color: '#8b5cf6', keywords: ['试剂空吸', '试剂不足', '吸试剂', 'reagent', '试剂吸', 'reagent aspirate', '试剂空'] },
+    gripper: { title: '抓手运行故障', icon: 'fa-hand-paper', color: '#ef4444', keywords: ['抓手', '机械手', '抓取', 'gripper', 'arm', '手抓', 'grip', '抓针', '抓手故障', '抓手异常'] }
+};
+
+function hexToTemp(hexStr) {
+    const val = parseInt(hexStr, 16);
+    if (isNaN(val)) return '--';
+    return (val / 10).toFixed(1) + '°C';
+}
+
+function parseCoolingFlags(flagHex) {
+    const val = parseInt(flagHex, 16);
+    if (isNaN(val)) return { raw: flagHex, val: 0, flagItems: [] };
+    const bitDefs = [
+        { bit: 0x01, on: '制冷开启', off: '制冷关闭' },
+        { bit: 0x02, on: '内部制冷风扇开启', off: '内部制冷风机关闭' },
+        { bit: 0x04, on: '水冷泵开启', off: '水冷泵关闭' },
+        { bit: 0x08, on: '制冷泵开关开启', off: '制冷泵开关关闭' }
+    ];
+    const flagItems = [];
+    for (const d of bitDefs) {
+        const isOn = (val & d.bit) !== 0;
+        flagItems.push({ text: isOn ? d.on : d.off, on: isOn });
+    }
+    return { raw: flagHex, val, flagItems };
+}
+
+function parseCoolingLine(line, series) {
+    const match = line.match(/<(\d+-\d+)>\s+0C\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})/);
+    if (!match) return null;
+    const addr = match[1];
+    const ok = match[2] === '80';
+    const status = ok ? '查询成功' : '查询失败';
+    const reagentTemp = ok ? hexToTemp(match[3] + match[4]) : '--';
+    const sensorTemp = ok ? hexToTemp(match[5] + match[6]) : '--';
+    const flagInfo = ok ? parseCoolingFlags(match[7]) : { raw: match[7], val: parseInt(match[7],16), flagItems: [] };
+    const pwm = parseInt(match[8], 16);
+    const pwmPct = ok ? (isNaN(pwm) ? '--' : pwm + '%') : '--';
+    return { cmd: '0C', addr, status, reagentTemp, sensorTemp, flagInfo, pwm: pwmPct, series: 'SMART6500', raw: match[0], dataValid: ok };
+}
+
+function parseCoolingLine500_0C(line) {
+    const match = line.match(/<(\d+-\d+)>\s+0C\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})/);
+    if (!match) return null;
+    const addr = match[1];
+    const ok = match[2] === '80';
+    const status = ok ? '查询成功' : '查询失败';
+    const reagentTemp = ok ? hexToTemp(match[3] + match[4]) : '--';
+    const coldEndTemp = ok ? hexToTemp(match[5] + match[6]) : '--';
+    const hotEndTemp = ok ? hexToTemp(match[7] + match[8]) : '--';
+    const overTemp = [];
+    if (ok) {
+        const rVal = parseFloat(reagentTemp);
+        const cVal = parseFloat(coldEndTemp);
+        const hVal = parseFloat(hotEndTemp);
+        if (!isNaN(cVal) && cVal > 35) overTemp.push('冷端' + coldEndTemp + '>35°C');
+        if (!isNaN(hVal) && hVal > 60) overTemp.push('热端' + hotEndTemp + '>60°C');
+        if (!isNaN(rVal) && rVal > 40) overTemp.push('显示' + reagentTemp + '>40°C');
+    }
+    return { cmd: '0C', addr, status, reagentTemp, coldEndTemp, hotEndTemp, overTemp, series: 'SMART500', raw: match[0], dataValid: ok };
+}
+
+function getCoolingStateText(stateHex) {
+    const val = parseInt(stateHex, 16);
+    if (isNaN(val)) return { text: '未知', normal: false };
+    switch(val) {
+        case 0: return { text: '制冷未开启', normal: false };
+        case 1: return { text: '制冷开启', normal: true };
+        case 2: return { text: '制冷温度超限', normal: false };
+        case 3: return { text: '制冷温度超限', normal: false };
+        case 5: return { text: '除冰模式', normal: true };
+        default: return { text: '未知状态(' + val + ')', normal: false };
+    }
+}
+
+function parseCoolingLine500_1C(line) {
+    const match = line.match(/<(\d+-\d+)>\s+1C\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})\s+([\dA-Fa-f]{2})/);
+    if (!match) return null;
+    const addr = match[1];
+    const status = match[2] === '80' ? '查询成功' : '查询失败';
+    const pwm = parseInt(match[3], 16);
+    const pwmPct = isNaN(pwm) ? '--' : pwm + '%';
+    const coolState = getCoolingStateText(match[4]);
+    const tecVolt = (parseInt(match[5], 16) / 10).toFixed(1) + 'V';
+    const tecCurr = (parseInt(match[6], 16) / 10).toFixed(1) + 'A';
+    const pumpSpeed = parseInt(match[7], 16);
+    const pumpStr = isNaN(pumpSpeed) ? '--' : pumpSpeed + '转/秒';
+    return { cmd: '1C', addr, status, pwm: pwmPct, coolState, tecVolt, tecCurr, pumpSpeed: pumpStr, series: 'SMART500', raw: match[0] };
+}
+
+async function openFaultModal(type) {
+    if (!currentFileName) { alert('请先选择一个文件'); return; }
+    const config = FAULT_KEYWORDS[type];
+    if (!config) return;
+    let fullText = _fullFileContent || getCurrentContent();
+    if (!fullText || fullText.length < 10) {
+        try {
+            const resp = await fetch(`/api/analysis/${ANALYSIS_ID}/file?name=${encodeURIComponent(currentFileName)}`);
+            if (resp.ok) {
+                const data = await resp.json();
+                fullText = data.content || '';
+                _fullFileContent = fullText;
+            }
+        } catch(e) {}
+        if (!fullText || fullText.length < 10) { alert('无法获取文件内容'); return; }
+    }
+    const lines = fullText.split('\n');
+    const modal = document.getElementById('fullModal');
+
+    if (type === 'cooling') {
+        const deviceModel = (_embeddedData && _embeddedData.model) || '';
+        const isSmart6500 = deviceModel.toUpperCase().includes('6500');
+        const isSmart500 = !isSmart6500 && deviceModel.toUpperCase().includes('500');
+        const coolingMatches = [];
+        const coolingRegex = isSmart500 ? /<\d+-\d+>\s+[01]C\s+[\dA-Fa-f]{2}/i : /<\d+-\d+>\s+0C\s+[\dA-Fa-f]{2}/i;
+        lines.forEach((line, idx) => {
+            if (coolingRegex.test(line)) {
+                coolingMatches.push({ lineNum: idx + 1, text: line });
+            }
+        });
+        document.getElementById('modalTitle').innerHTML = `<i class="fas fa-snowflake" style="margin-right:8px;color:#0ea5e9;"></i>制冷故障分析 - ${escapeHtml(currentFileName)} <span style="font-size:0.8rem;color:#64748b;">(${deviceModel || '未知型号'} | ${coolingMatches.length}条制冷命令)</span>`;
+        let html = '';
+        if (coolingMatches.length === 0) {
+            html = `<div style="text-align:center;padding:60px 20px;color:#94a3b8;"><i class="fas fa-snowflake" style="font-size:3rem;opacity:0.3;margin-bottom:16px;"></i><div style="font-size:1.1rem;font-weight:600;">未找到0C/1C制冷命令记录</div><div style="margin-top:8px;font-size:0.85rem;">搜索命令格式: &lt;00-88&gt; 0C/1C ...</div></div>`;
+        } else {
+            const displayItems = coolingMatches.slice(0, MAX_MODAL_DISPLAY);
+            const isFail = (parsed) => {
+                if (!parsed) return false;
+                if (parsed.flagInfo && parsed.flagInfo.flagItems.some(f => !f.on)) return true;
+                if (parsed.coolState && !parsed.coolState.normal) return true;
+                if (parsed.overTemp && parsed.overTemp.length > 0) return true;
+                return false;
+            };
+            let failCount = 0, firstFailIdx = -1;
+            displayItems.forEach((m, i) => {
+                const p = isSmart500 ? (parseCoolingLine500_0C(m.text) || parseCoolingLine500_1C(m.text)) : parseCoolingLine(m.text, 'SMART6500');
+                if (isFail(p)) { failCount++; if (firstFailIdx === -1) firstFailIdx = i; }
+            });
+            let failInfo = '';
+            if (failCount > 0) {
+                failInfo = `，<span style="color:#dc2626;font-weight:700;cursor:pointer;text-decoration:underline;" onclick="document.getElementById('cooling-item-${firstFailIdx}')&&document.getElementById('cooling-item-${firstFailIdx}').scrollIntoView({behavior:'smooth',block:'center'})">异常${failCount}条(点击定位)</span>`;
+            } else {
+                failInfo = '，<span style="color:#16a34a;font-weight:600;">全部正常</span>';
+            }
+            html = `<div style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);border-left:3px solid #0ea5e9;border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.85rem;color:#475569;"><i class="fas fa-info-circle" style="margin-right:6px;"></i>共找到 <strong style="color:#0ea5e9;">${coolingMatches.length}</strong> 条制冷命令${failInfo}${coolingMatches.length > MAX_MODAL_DISPLAY ? `，当前显示前${MAX_MODAL_DISPLAY}条` : ''}，以下逐条解析字段含义</div>`;
+            html += '<div style="max-height:calc(95vh - 160px);overflow-y:auto;">';
+
+            displayItems.forEach((m, i) => {
+                const parsed = isSmart500 ? (parseCoolingLine500_0C(m.text) || parseCoolingLine500_1C(m.text)) : parseCoolingLine(m.text, 'SMART6500');
+                const itemFail = isFail(parsed);
+                html += `<div id="cooling-item-${i}" style="margin:6px 0;background:white;border-radius:8px;border:1px solid ${itemFail ? '#fecaca' : '#e2e8f0'};box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;">`;
+                html += `<div style="display:flex;gap:8px;padding:6px 10px;background:${itemFail ? '#fef2f2' : '#f8fafc'};border-bottom:1px solid ${itemFail ? '#fecaca' : '#e2e8f0'};"><span style="color:#94a3b8;font-size:0.75rem;min-width:40px;text-align:right;flex-shrink:0;padding-top:2px;">L${m.lineNum}</span><span style="font-family:monospace;font-size:0.82rem;line-height:1.4;white-space:pre-wrap;word-break:break-word;flex:1;color:#334155;">${escapeHtml(m.text)}</span></div>`;
+                if (parsed) {
+                    html += `<div style="padding:8px 12px;font-size:0.82rem;line-height:1.8;">`;
+                    html += `<div style="display:grid;grid-template-columns:100px 1fr;gap:2px 8px;">`;
+                    html += `<span style="color:#64748b;font-weight:500;">系列:</span><span style="color:#6366f1;font-weight:600;">${parsed.series || 'SMART6500'}</span>`;
+                    html += `<span style="color:#64748b;font-weight:500;">命令:</span><span style="font-weight:600;">${parsed.cmd}</span>`;
+                    html += `<span style="color:#64748b;font-weight:500;">地址:</span><span>${parsed.addr}</span>`;
+                    html += `<span style="color:#64748b;font-weight:500;">查询状态:</span><span style="color:${parsed.status === '查询成功' ? '#16a34a' : '#dc2626'};font-weight:600;">${parsed.status}</span>`;
+                    if (parsed.dataValid === false) {
+                        html += `<span style="color:#dc2626;font-weight:500;">提示:</span><span style="color:#dc2626;font-size:0.78rem;">查询失败，数据字节无效，温度/旗标/PWM不予解析</span>`;
+                    }
+                    if (parsed.cmd === '0C' && parsed.series === 'SMART6500') {
+                        html += `<span style="color:#64748b;font-weight:500;">试剂制冷温度:</span><span style="color:#0ea5e9;font-weight:600;">${parsed.reagentTemp}</span>`;
+                        html += `<span style="color:#64748b;font-weight:500;">C2传感器温度:</span><span style="color:#0ea5e9;font-weight:600;">${parsed.sensorTemp}</span>`;
+                        if (parsed.flagInfo) {
+                            const flagHtml = parsed.flagInfo.flagItems.map(f => f.on ? `<span style="color:#16a34a;">${f.text}</span>` : `<span style="color:#dc2626;font-weight:700;background:#fef2f2;padding:1px 4px;border-radius:3px;">${f.text}</span>`).join('，');
+                            html += `<span style="color:#64748b;font-weight:500;">旗标位:</span><span>${parsed.flagInfo.raw}(0x${parsed.flagInfo.val.toString(16).padStart(2,'0')}) → ${flagHtml}</span>`;
+                            html += `<span style="color:#64748b;font-weight:500;">PWM功率:</span><span style="color:#f59e0b;font-weight:600;">${parsed.pwm}</span>`;
+                        }
+                    } else if (parsed.cmd === '0C' && parsed.series === 'SMART500') {
+                        html += `<span style="color:#64748b;font-weight:500;">试剂制冷温度:</span><span style="color:#0ea5e9;font-weight:600;">${parsed.reagentTemp}</span>`;
+                        html += `<span style="color:#64748b;font-weight:500;">冷端温度:</span><span style="color:#0ea5e9;font-weight:600;">${parsed.coldEndTemp}</span>`;
+                        html += `<span style="color:#64748b;font-weight:500;">热端温度:</span><span style="color:#0ea5e9;font-weight:600;">${parsed.hotEndTemp}</span>`;
+                        if (parsed.overTemp && parsed.overTemp.length > 0) {
+                            html += `<span style="color:#64748b;font-weight:500;">过温保护:</span><span style="color:#dc2626;font-weight:700;background:#fef2f2;padding:1px 4px;border-radius:3px;">${parsed.overTemp.join('，')}</span>`;
+                        }
+                    } else if (parsed.cmd === '1C' && parsed.series === 'SMART500') {
+                        html += `<span style="color:#64748b;font-weight:500;">PWM功率:</span><span style="color:#f59e0b;font-weight:600;">${parsed.pwm}</span>`;
+                        const stateColor = parsed.coolState.normal ? '#16a34a' : '#dc2626';
+                        const stateBg = parsed.coolState.normal ? '' : 'background:#fef2f2;padding:1px 4px;border-radius:3px;';
+                        html += `<span style="color:#64748b;font-weight:500;">制冷状态:</span><span style="color:${stateColor};font-weight:700;${stateBg}">${parsed.coolState.text}</span>`;
+                        html += `<span style="color:#64748b;font-weight:500;">制冷片电压:</span><span style="color:#0ea5e9;font-weight:600;">${parsed.tecVolt}</span>`;
+                        html += `<span style="color:#64748b;font-weight:500;">制冷片电流:</span><span style="color:#0ea5e9;font-weight:600;">${parsed.tecCurr}</span>`;
+                        html += `<span style="color:#64748b;font-weight:500;">水冷泵转速:</span><span style="color:#0ea5e9;font-weight:600;">${parsed.pumpSpeed}</span>`;
+                    }
+                    html += `</div></div>`;
+                } else {
+                    html += `<div style="padding:6px 12px;font-size:0.8rem;color:#94a3b8;"><i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i>格式不匹配，无法解析</div>`;
+                }
+                html += `</div>`;
+            });
+            html += '</div>';
+        }
+        document.getElementById('modalBody').innerHTML = html;
+        modal.style.display = 'flex';
+        return;
+    }
+
+    const matches = [];
+    const lowerKeywords = config.keywords.map(k => k.toLowerCase());
+    lines.forEach((line, idx) => {
+        const lowerLine = line.toLowerCase();
+        for (const kw of lowerKeywords) {
+            if (lowerLine.includes(kw)) {
+                matches.push({ lineNum: idx + 1, text: line, keyword: kw });
+                break;
+            }
+        }
+    });
+    document.getElementById('modalTitle').innerHTML = `<i class="fas ${config.icon}" style="margin-right:8px;color:${config.color};"></i>${config.title} - ${escapeHtml(currentFileName)} <span style="font-size:0.8rem;color:#64748b;">(${matches.length}条匹配)</span>`;
+    let html = '';
+    if (matches.length === 0) {
+        html = `<div style="text-align:center;padding:60px 20px;color:#94a3b8;"><i class="fas ${config.icon}" style="font-size:3rem;opacity:0.3;margin-bottom:16px;"></i><div style="font-size:1.1rem;font-weight:600;">未找到${config.title}相关记录</div><div style="margin-top:8px;font-size:0.85rem;">搜索关键词: ${config.keywords.join(', ')}</div></div>`;
+    } else {
+        html = `<div style="background:linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);border-left:3px solid ${config.color};border-radius:8px;padding:10px;margin-bottom:12px;font-size:0.85rem;color:#475569;"><i class="fas fa-info-circle" style="margin-right:6px;"></i>共找到 <strong style="color:${config.color};">${matches.length}</strong> 条${config.title}相关记录${matches.length > MAX_MODAL_DISPLAY ? `，当前显示前${MAX_MODAL_DISPLAY}条` : ''}</div>`;
+        html += '<div style="max-height:calc(95vh - 160px);overflow-y:auto;">';
+        const kwRegex = new RegExp('(' + config.keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|') + ')', 'gi');
+        matches.slice(0, MAX_MODAL_DISPLAY).forEach((m, i) => {
+            const highlighted = escapeHtml(m.text).replace(kwRegex, '<mark style="background:#fef08a;padding:1px 3px;border-radius:2px;">$1</mark>');
+            html += `<div style="display:flex;gap:8px;padding:6px 10px;margin:4px 0;background:white;border-radius:6px;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.05);"><span style="color:#94a3b8;font-size:0.75rem;min-width:40px;text-align:right;flex-shrink:0;padding-top:2px;">L${m.lineNum}</span><span style="font-family:monospace;font-size:0.85rem;line-height:1.5;white-space:pre-wrap;word-break:break-word;flex:1;">${highlighted}</span></div>`;
+        });
+        html += '</div>';
+    }
+    document.getElementById('modalBody').innerHTML = html;
+    modal.style.display = 'flex';
+}
+
 function openMatchModal(groupId, title) {
     const modal = document.getElementById('fullModal');
     const icon = groupId === 'sampleMatches' ? 'fa-vial' : 'fa-flask';
     document.getElementById('modalTitle').innerHTML = `<i class="fas ${icon}" style="margin-right:8px;"></i>${title} - 全文查看`;
     const items = window.matchData[groupId] || [];
+    const displayItems = items.slice(0, MAX_MODAL_DISPLAY);
     const bgColor = groupId === 'sampleMatches' ? '#e0f2fe' : '#f3e8ff';
     const borderColor = groupId === 'sampleMatches' ? 'var(--info)' : 'var(--purple)';
     let contentHtml = '';
-    items.forEach((item, idx) => {
+    displayItems.forEach((item, idx) => {
         contentHtml += `<div style="background:linear-gradient(135deg, #fefce8 0%, #fef9c3 100%);border-left:3px solid var(--warning);padding:6px 10px;margin:2px 0;border-radius:6px;font-family:monospace;font-size:0.92rem;line-height:1.4;white-space:pre-wrap;word-break:break-word;box-shadow:var(--shadow-sm);"><i class="fas fa-file-alt" style="color:var(--warning);margin-right:6px;"></i>${escapeHtml(item.original_text || '')}</div>`;
         contentHtml += `<div style="color:var(--success);padding:4px 10px;font-size:0.92rem;line-height:1.4;background:rgba(16,185,129,0.05);border-radius:4px;margin:2px 0;"><i class="fas fa-lightbulb" style="margin-right:6px;"></i><strong>诊断建议:</strong> ${escapeHtml(item.advice || '')}</div>`;
         if (idx < items.length - 1) {
@@ -2057,6 +2503,7 @@ let searchMatches = [];
 let currentMatchIndex = -1;
 let markedLines = new Set();
 let bookmarks = new Set();
+let _lastFindNextParams = null;
 
 function openSearchDialog() {
     document.getElementById('searchDialog').style.display = 'flex';
@@ -2104,6 +2551,7 @@ function switchSearchTab(tabName) {
 }
 
 function getCurrentContent() {
+    if (_fullFileContent != null) return _fullFileContent;
     const rightBody = document.getElementById('rightBody');
     if (!rightBody) return '';
     const rawContent = rightBody.querySelector('.raw-content');
@@ -2129,6 +2577,17 @@ function buildSearchPattern(pattern, isRegex, caseSensitive, wholeWord) {
     }
 }
 
+function findPrev() {
+    if (!searchMatches.length) {
+        findNext();
+        return;
+    }
+    currentMatchIndex--;
+    if (currentMatchIndex < 0) currentMatchIndex = searchMatches.length - 1;
+    highlightCurrentMatch();
+    showStatus(`第 ${currentMatchIndex + 1} / ${searchMatches.length} 个匹配项`);
+}
+
 function findNext() {
     const pattern = document.getElementById('findInput').value;
     if (!pattern) return;
@@ -2138,32 +2597,44 @@ function findNext() {
     const wholeWord = document.getElementById('findWholeWord').checked;
     const wrap = document.getElementById('findWrap').checked;
     
-    const regex = buildSearchPattern(pattern, isRegex, caseSensitive, wholeWord);
-    if (!regex) {
-        showStatus('正则表达式错误');
-        return;
-    }
+    const paramsKey = pattern + '|' + isRegex + '|' + caseSensitive + '|' + wholeWord;
+    const cached = _lastFindNextParams === paramsKey && searchMatches.length > 0;
     
-    const content = getCurrentContent();
-    const lines = content.split('\n');
-    
-    searchMatches = [];
-    lines.forEach((line, idx) => {
-        let match;
-        regex.lastIndex = 0;
-        while ((match = regex.exec(line)) !== null) {
-            searchMatches.push({
-                lineNum: idx + 1,
-                col: match.index,
-                text: line,
-                match: match[0]
-            });
+    if (!cached) {
+        const regex = buildSearchPattern(pattern, isRegex, caseSensitive, wholeWord);
+        if (!regex) {
+            showStatus('正则表达式错误');
+            return;
         }
-    });
-    
-    if (searchMatches.length === 0) {
-        showStatus('未找到匹配项');
-        return;
+        
+        const content = getCurrentContent();
+        if (content.length > 5000000) { showStatus('文件过大(>5MB)，请使用全局搜索'); return; }
+        const lines = content.split('\n');
+        
+        searchMatches = [];
+        const MAX_MATCHES = 5000;
+        for (let idx = 0; idx < lines.length && searchMatches.length < MAX_MATCHES; idx++) {
+            const line = lines[idx];
+            if (line.length === 0) continue;
+            let match;
+            regex.lastIndex = 0;
+            while ((match = regex.exec(line)) !== null) {
+                searchMatches.push({
+                    lineNum: idx + 1,
+                    col: match.index,
+                    text: line.length > 300 ? line.substring(0, 300) : line,
+                    match: match[0]
+                });
+                if (searchMatches.length >= MAX_MATCHES) break;
+            }
+        }
+        _lastFindNextParams = paramsKey;
+        currentMatchIndex = -1;
+        
+        if (searchMatches.length === 0) {
+            showStatus('未找到匹配项');
+            return;
+        }
     }
     
     currentMatchIndex++;
@@ -2181,29 +2652,122 @@ function findNext() {
     showStatus(`第 ${currentMatchIndex + 1} / ${searchMatches.length} 个匹配项`);
 }
 
+let _lineOffsetsCache = null;
+let _lineOffsetsCacheLen = -1;
+
+function getLineStartOffset(lineNum) {
+    const fullText = _fullFileContent || '';
+    if (_lineOffsetsCacheLen !== fullText.length) {
+        _lineOffsetsCache = [0];
+        for (let i = 0; i < fullText.length; i++) {
+            if (fullText.charCodeAt(i) === 10) _lineOffsetsCache.push(i + 1);
+        }
+        _lineOffsetsCacheLen = fullText.length;
+    }
+    return _lineOffsetsCache[lineNum - 1] !== undefined ? _lineOffsetsCache[lineNum - 1] : -1;
+}
+
 function highlightCurrentMatch() {
     if (currentMatchIndex < 0 || currentMatchIndex >= searchMatches.length) return;
     
     const match = searchMatches[currentMatchIndex];
     const rightBody = document.getElementById('rightBody');
+    if (!rightBody) return;
     const rawContent = rightBody.querySelector('.raw-content');
+    if (!rawContent) return;
     
-    if (rawContent) {
-        const lines = rawContent.innerHTML.split('\n');
-        lines.forEach((line, idx) => {
-            if (idx === match.lineNum - 1) {
-                const highlighted = line.replace(
-                    new RegExp(`(${escapeRegExp(match.match)})`, 'gi'),
-                    '<span class="highlight-current">$1</span>'
-                );
-                lines[idx] = highlighted;
+    const prevHl = rawContent.querySelector('.highlight-current');
+    if (prevHl) {
+        const parent = prevHl.parentNode;
+        parent.replaceChild(document.createTextNode(prevHl.textContent), prevHl);
+        parent.normalize();
+    }
+    
+    const lineEl = rawContent.querySelector(`[data-line="${match.lineNum}"]`);
+    if (lineEl) {
+        const regex = new RegExp(`(${escapeRegExp(match.match)})`, 'gi');
+        const frag = document.createDocumentFragment();
+        let lastIdx = 0;
+        const text = lineEl.textContent;
+        let m;
+        while ((m = regex.exec(text)) !== null) {
+            if (m.index > lastIdx) frag.appendChild(document.createTextNode(text.slice(lastIdx, m.index)));
+            const span = document.createElement('span');
+            span.className = 'highlight-current';
+            span.textContent = m[1];
+            frag.appendChild(span);
+            lastIdx = regex.lastIndex;
+        }
+        if (lastIdx < text.length) frag.appendChild(document.createTextNode(text.slice(lastIdx)));
+        lineEl.textContent = '';
+        lineEl.appendChild(frag);
+        const highlightEl = lineEl.querySelector('.highlight-current');
+        if (highlightEl) highlightEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+    }
+    
+    const fullText = _fullFileContent || rawContent.textContent;
+    if (!fullText) return;
+    
+    const lineStart = getLineStartOffset(match.lineNum);
+    if (lineStart < 0) return;
+    const lineEnd = fullText.indexOf('\n', lineStart);
+    const lineText = fullText.substring(lineStart, lineEnd === -1 ? fullText.length : lineEnd);
+    
+    const absStart = lineStart + (match.col || 0);
+    const absEnd = absStart + (match.match ? match.match.length : 0);
+    if (absEnd <= absStart) return;
+    
+    const walker = document.createTreeWalker(rawContent, NodeFilter.SHOW_TEXT, null);
+    let curOffset = 0;
+    let startNode = null, startOff = 0, endNode = null, endOff = 0;
+    
+    while (walker.nextNode()) {
+        const node = walker.currentNode;
+        const nodeLen = node.textContent.length;
+        if (startNode === null && curOffset + nodeLen > absStart) {
+            startNode = node;
+            startOff = absStart - curOffset;
+        }
+        if (curOffset + nodeLen >= absEnd) {
+            endNode = node;
+            endOff = absEnd - curOffset;
+            break;
+        }
+        curOffset += nodeLen;
+    }
+    
+    if (startNode) {
+        try {
+            if (startNode === endNode) {
+                const nodeText = startNode.textContent;
+                const before = nodeText.substring(0, startOff);
+                const matched = nodeText.substring(startOff, endOff);
+                const after = nodeText.substring(endOff);
+                const parent = startNode.parentNode;
+                const frag = document.createDocumentFragment();
+                if (before) frag.appendChild(document.createTextNode(before));
+                const span = document.createElement('span');
+                span.className = 'highlight-current';
+                span.textContent = matched;
+                frag.appendChild(span);
+                if (after) frag.appendChild(document.createTextNode(after));
+                parent.replaceChild(frag, startNode);
+                span.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+                const range = document.createRange();
+                range.setStart(startNode, startOff);
+                range.setEnd(endNode, endOff);
+                const span = document.createElement('span');
+                span.className = 'highlight-current';
+                range.surroundContents(span);
+                span.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
-        });
-        rawContent.innerHTML = lines.join('\n');
-        
-        const highlightEl = rawContent.querySelector('.highlight-current');
-        if (highlightEl) {
-            highlightEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (e) {
+            const lineHeight = 26;
+            const targetScroll = Math.max(0, (match.lineNum - 1) * lineHeight - rawContent.clientHeight / 2);
+            rawContent.scrollTo({ top: targetScroll, behavior: 'smooth' });
+            showStatus(`行 ${match.lineNum}: ${lineText.substring(0, 100)}`);
         }
     }
 }
@@ -2227,55 +2791,65 @@ function findAll() {
     }
     
     const content = getCurrentContent();
+    if (content.length > 5000000) { showStatus('文件过大(>5MB)，请使用全局搜索'); return; }
     const lines = content.split('\n');
     
     searchMatches = [];
+    const MAX_MATCHES = 5000;
     
-    lines.forEach((line, idx) => {
+    for (let idx = 0; idx < lines.length && searchMatches.length < MAX_MATCHES; idx++) {
+        const line = lines[idx];
+        if (line.length === 0) continue;
         let match;
         regex.lastIndex = 0;
         while ((match = regex.exec(line)) !== null) {
             searchMatches.push({
                 lineNum: idx + 1,
                 col: match.index,
-                text: line,
+                text: line.length > 300 ? line.substring(0, 300) : line,
                 match: match[0]
             });
+            if (searchMatches.length >= MAX_MATCHES) break;
         }
-    });
+    }
     
     if (!searchMatches.length) {
         showStatus('未找到匹配项');
         return;
     }
+    _lastFindNextParams = null;
+    currentMatchIndex = -1;
     
     // 打开底部结果面板
     openResultPanel();
+    closeSearchDialog();
     
     // 生成结果组ID
     const gid = ++resultGroupId;
     
     // 构建结果项HTML
-    let itemsHtml = '';
-    const displayMatches = searchMatches.slice(0, 100); // 最多显示100条
+    let itemsArr = [];
+    const displayMatches = searchMatches.slice(0, MAX_SEARCH_DISPLAY);
     displayMatches.forEach(m => {
         const highlighted = escapeHtml(m.text.substring(0, 150)).replace(
             new RegExp(`(${escapeRegExp(escapeHtml(m.match))})`, 'gi'),
             '<span class="match-highlight">$1</span>'
         );
-        itemsHtml += `<div class="result-item-mini" onclick="jumpToLine(${m.lineNum})">
+        itemsArr.push(`<div class="result-item-mini" onclick="jumpToLine(${m.lineNum})">
             <span class="line-num">行 ${m.lineNum}:</span>
             <span class="line-text">${highlighted}</span>
-        </div>`;
+        </div>`);
     });
+    const itemsHtml = itemsArr.join("");
     
     // 构建结果组HTML
+    const moreBtn = '';
     const groupHtml = `
         <div class="result-group" id="group-${gid}">
             <div class="result-group-header" onclick="toggleResultGroup(${gid})">
                 <span class="result-group-title">
                     <i class="fas fa-search"></i>
-                    "${escapeHtml(pattern)}" (${searchMatches.length}个匹配) ${searchMatches.length > 100 ? '- 显示前100条' : ''}
+                    "${escapeHtml(pattern)}" (${searchMatches.length}个匹配)
                 </span>
                 <div class="result-group-actions">
                     <button class="result-toggle-btn" id="toggle-${gid}" onclick="event.stopPropagation();toggleResultGroup(${gid})">−</button>
@@ -2284,12 +2858,15 @@ function findAll() {
             </div>
             <div class="result-group-content" id="content-${gid}">
                 ${itemsHtml}
+                ${moreBtn}
             </div>
             <div class="result-group-resize" onmousedown="startGroupResize(event, ${gid})"></div>
         </div>
     `;
     
     // 添加到面板（最新的在上面）
+    if (!window._searchResultsCache) window._searchResultsCache = {};
+    window._searchResultsCache[gid] = searchMatches;
     document.getElementById('resultPanelBody').insertAdjacentHTML('afterbegin', groupHtml);
     
     showStatus(`找到 ${searchMatches.length} 个匹配项`);
@@ -2351,6 +2928,7 @@ function highlightAll() {
     
     if (rawContent) {
         const content = rawContent.innerHTML;
+        if (content.length > 500000) { showStatus('文件过大(>500KB)，无法全量高亮，请使用查找功能'); return; }
         const highlighted = content.replace(regex, '<span class="highlight-mark">$&</span>');
         rawContent.innerHTML = highlighted;
         showStatus('已高亮所有匹配项');
@@ -2382,8 +2960,9 @@ function replaceNext() {
         const match = content.match(regex);
         
         if (match) {
-            const newContent = content.replace(regex, replacement);
-            rawContent.textContent = newContent;
+            const onceRegex = new RegExp(regex.source, regex.flags.replace('g', ''));
+            const newContent = content.replace(onceRegex, replacement);
+            rawContent.innerHTML = escapeHtml(newContent);
             showStatus('已替换 1 处');
         } else {
             showStatus('未找到匹配项');
@@ -2416,7 +2995,7 @@ function replaceAll() {
         
         if (count > 0) {
             const newContent = content.replace(regex, replacement);
-            rawContent.textContent = newContent;
+            rawContent.innerHTML = escapeHtml(newContent);
             showStatus(`已替换 ${count} 处`);
         } else {
             showStatus('未找到匹配项');
@@ -2452,8 +3031,8 @@ function findInFiles() {
     .then(data => {
         if (data.results) {
             const results = data.results.map(r => 
-                `<div class="search-result-item" onclick="jumpToFile('${r.file}', ${r.line})">
-                    <span class="line-num">${r.file} 行 ${r.line}:</span>
+                `<div class="search-result-item" onclick="jumpToFile('${escapeHtml(r.file).replace(/'/g, "\\'")}', ${r.line})">
+                    <span class="line-num">${escapeHtml(r.file)} 行 ${r.line}:</span>
                     <span class="line-text">${escapeHtml(r.text)}</span>
                 </div>`
             ).join('');
@@ -2484,6 +3063,7 @@ function markAll() {
     }
     
     const content = getCurrentContent();
+    if (content.length > 5000000) { showStatus('文件过大(>5MB)，请使用全局搜索'); return; }
     const lines = content.split('\n');
     
     markedLines.clear();
@@ -2496,7 +3076,7 @@ function markAll() {
             if (bookmark) {
                 bookmarks.add(idx + 1);
             }
-            results.push(`<div class="search-result-item" onclick="jumpToLine(${idx + 1})">
+    if (results.length < MAX_SEARCH_DISPLAY) results.push(`<div class="search-result-item" onclick="jumpToLine(${idx + 1})">
                 <span class="line-num">行 ${idx + 1}:</span>
                 <span class="line-text">${escapeHtml(line)}</span>
             </div>`);
@@ -2525,30 +3105,20 @@ function clearMarks() {
 
 function jumpToLine(lineNum) {
     const rightBody = document.getElementById('rightBody');
-    const rawContent = rightBody.querySelector('.raw-content');
-    
-    if (rawContent) {
-        const lines = rawContent.innerHTML.split('\n');
-        if (lineNum > 0 && lineNum <= lines.length) {
-            const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = lines[lineNum - 1];
-            tempDiv.id = 'jump-target';
-            tempDiv.style.background = '#fef08a';
-            tempDiv.style.padding = '2px 4px';
-            tempDiv.style.borderRadius = '2px';
-            lines[lineNum - 1] = tempDiv.outerHTML;
-            rawContent.innerHTML = lines.join('\n');
-            
-            const target = document.getElementById('jump-target');
-            if (target) {
-                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                setTimeout(() => {
-                    target.style.background = '';
-                    target.id = '';
-                }, 2000);
-            }
-        }
+    const rawContent = rightBody && rightBody.querySelector('.raw-content');
+    if (!rawContent) return;
+    if (rawContent.innerHTML.length > 500000) {
+        const targetLine = _fullFileContent ? _fullFileContent.split('\n')[lineNum-1] : null;
+        if (targetLine) showStatus('行 ' + lineNum + ': ' + targetLine.substring(0, 200));
+        return;
     }
+    const fullText = _fullFileContent || rawContent.textContent;
+    if (!fullText) return;
+    const allLines = fullText.split('\n');
+    if (lineNum < 1 || lineNum > allLines.length) return;
+    const lineHeight = 23;
+    rawContent.scrollTop = Math.max(0, (lineNum - 1) * lineHeight - rawContent.clientHeight / 2);
+    showStatus('行 ' + lineNum + ': ' + allLines[lineNum-1].substring(0, 100));
 }
 
 function jumpToFile(filename, line) {
@@ -2559,6 +3129,36 @@ function jumpToFile(filename, line) {
             setTimeout(() => jumpToLine(line), 500);
             break;
         }
+    }
+}
+
+function loadMoreSearchResults(gid, pattern, currentOffset) {
+    const allMatches = window._searchResultsCache && window._searchResultsCache[gid];
+    if (!allMatches) return;
+    const batchSize = 500;
+    const nextBatch = allMatches.slice(currentOffset, currentOffset + batchSize);
+    const contentEl = document.getElementById('content-' + gid);
+    const moreBtn = document.getElementById('searchMore-' + gid);
+    if (!contentEl || !moreBtn) return;
+    let html = '';
+    nextBatch.forEach(m => {
+        const highlighted = escapeHtml(m.text.substring(0, 150)).replace(
+            new RegExp('(' + escapeRegExp(escapeHtml(m.match)) + ')', 'gi'),
+            '<span class="match-highlight">$1</span>'
+        );
+        html += '<div class="result-item-mini" onclick="jumpToLine(' + m.lineNum + ')"><span class="line-num">行 ' + m.lineNum + ':</span><span class="line-text">' + highlighted + '</span></div>';
+    });
+    const newOffset = currentOffset + nextBatch.length;
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    while (tempDiv.firstChild) { contentEl.insertBefore(tempDiv.firstChild, moreBtn); }
+    if (newOffset < allMatches.length) {
+        moreBtn.innerHTML = '<i class="fas fa-angle-double-down" style="margin-right:4px;"></i>显示更多 (已显示 ' + newOffset + '/' + allMatches.length + ')';
+        moreBtn.onclick = function() { loadMoreSearchResults(gid, pattern, newOffset); };
+    } else {
+        moreBtn.innerHTML = '<i class="fas fa-check-circle" style="margin-right:4px;color:#22c55e;"></i>全部显示完成 (共' + allMatches.length + '条)';
+        moreBtn.onclick = null;
+        moreBtn.style.cursor = 'default';
     }
 }
 
@@ -2573,8 +3173,7 @@ document.addEventListener('keydown', function(e) {
     } else if (e.key === 'F3') {
         e.preventDefault();
         if (e.shiftKey) {
-            currentMatchIndex -= 2;
-            findNext();
+            findPrev();
         } else {
             findNext();
         }
@@ -2671,6 +3270,7 @@ function toggleResultGroup(id) {
 }
 
 function removeResultGroup(id) {
+    if (window._searchResultsCache) delete window._searchResultsCache[id];
     const group = document.getElementById('group-' + id);
     if (group) group.remove();
     if (!document.getElementById('resultPanelBody').children.length) closeResultPanel();
