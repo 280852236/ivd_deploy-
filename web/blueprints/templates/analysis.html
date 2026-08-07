@@ -1391,7 +1391,7 @@ let _embeddedData = null;
 try { _embeddedData = {{ embedded_data | safe }}; } catch(e) {}
 const _fileCacheMap = new Map();
 const FILE_CACHE_MAX = 15;
-const MAX_MODAL_DISPLAY = 500;
+const MAX_MODAL_DISPLAY = 5000;
 const MAX_SEARCH_DISPLAY = 1000;
 function fileCacheGet(key) {
     if (!_fileCacheMap.has(key)) return undefined;
