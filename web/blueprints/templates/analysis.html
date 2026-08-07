@@ -2380,32 +2380,37 @@ function parseNeedleLine(line, series) {
 function analyzeNeedleAbnormal(parsed, series) {
     if (!parsed || !parsed.ok) return { abnormal: false, reason: '' };
 
-    if (parsed.cmdType === 'E') {
-        const diff = parsed.fields.val3;
-        const diffNum = parseInt(diff);
-        if (isNaN(diffNum)) return { abnormal: false, reason: '' };
-        if (parsed.needleType === '样本针') {
-            if (diffNum < -30) return { abnormal: true, level: '严重', reason: `样本针行程差值${diffNum} < -30，超过1mm误差阈值` };
-            if (diffNum < -10) return { abnormal: true, level: '警告', reason: `样本针行程差值${diffNum} < -10，超出正常范围` };
-            return { abnormal: false, reason: '' };
-        } else {
-            if (diffNum < -100) return { abnormal: true, level: '严重', reason: `试剂针行程差值${diffNum} < -100，探液异常` };
-            if (diffNum < -30) return { abnormal: true, level: '警告', reason: `试剂针行程差值${diffNum} < -30，超出正常范围` };
-            return { abnormal: false, reason: '' };
+    if (parsed.cmdType === 'B') {
+        var diff = parseInt(parsed.fields.val3);
+        if (!isNaN(diff)) {
+            if (diff > 60) return { abnormal: true, level: '严重', reason: '探液高度差值' + diff + ' > 60，探液异常' };
+            if (diff > 40) return { abnormal: true, level: '警告', reason: '探液高度差值' + diff + ' > 40，可能空吸' };
         }
     }
 
     if (parsed.cmdType === 'C') {
-        const afterLevel = parseInt(parsed.fields.val3);
+        var afterLevel = parseInt(parsed.fields.val3);
         if (!isNaN(afterLevel) && afterLevel === 0) {
             return { abnormal: true, level: '严重', reason: '脱离液面后液位为0，脱离液面失败(空吸)' };
         }
     }
 
-    if (parsed.cmdType === 'B') {
-        const diff = parseInt(parsed.fields.val3);
-        if (!isNaN(diff) && diff > 20) {
-            return { abnormal: true, level: '警告', reason: `探液高度差值${diff} > 20，可能空吸` };
+    if (parsed.cmdType === 'D') {
+        var sortCount = parseInt(parsed.fields.val2);
+        var staticCount = parseInt(parsed.fields.val3);
+        if (!isNaN(sortCount) && sortCount > 10) {
+            return { abnormal: true, level: '警告', reason: 'SORT过滤次数' + sortCount + ' > 10，影响液位探测' };
+        }
+        if (!isNaN(staticCount) && staticCount > 10) {
+            return { abnormal: true, level: '警告', reason: '静态过滤次数' + staticCount + ' > 10，影响液位探测' };
+        }
+    }
+
+    if (parsed.cmdType === 'E') {
+        var diff = parseInt(parsed.fields.val3);
+        if (!isNaN(diff)) {
+            var absDiff = Math.abs(diff);
+            if (absDiff > 20) return { abnormal: true, level: '严重', reason: '行程差值' + diff + '，绝对值>20，探液异常' };
         }
     }
 
