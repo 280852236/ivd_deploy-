@@ -2552,18 +2552,23 @@ async function openFaultModal(type) {
     const config = FAULT_KEYWORDS[type];
     if (!config) return;
     let fullText = '';
+    let fetchError = '';
     try {
         const resp = await fetch(`/api/analysis/${ANALYSIS_ID}/file?name=${encodeURIComponent(currentFileName)}`);
         if (resp.ok) {
             const data = await resp.json();
             fullText = data.content || '';
             _fullFileContent = fullText;
+        } else {
+            fetchError = 'HTTP ' + resp.status;
         }
-    } catch(e) {}
+    } catch(e) { fetchError = e.message; }
     if (!fullText || fullText.length < 10) {
+        console.warn('openFaultModal: API获取失败(' + fetchError + ')，尝试缓存');
         fullText = _fullFileContent || getCurrentContent();
     }
-    if (!fullText || fullText.length < 10) { alert('无法获取文件内容'); return; }
+    if (!fullText || fullText.length < 10) { alert('无法获取文件内容: ' + fetchError); return; }
+    console.log('openFaultModal: fullText=' + fullText.length + ' chars, ' + fullText.split('\n').length + ' lines');
     const lines = fullText.split('\n');
     const modal = document.getElementById('fullModal');
 
