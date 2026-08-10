@@ -20,9 +20,15 @@ COPY static/ ./static/
 COPY blueprints/ ./blueprints/
 COPY services/ ./services/
 COPY tests/ ./tests/
+COPY entrypoint.sh /entrypoint.sh
+RUN adduser --disabled-password --gecos '' --uid 1001 appuser && \
+    mkdir -p /app/uploads && \
+    chown -R appuser:appuser /app && \
+    chmod +x /entrypoint.sh
 
 # --- 健康检查 ---
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8081/api/health || exit 1
 
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:8081", "app:app"]

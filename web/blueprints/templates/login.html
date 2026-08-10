@@ -3,6 +3,10 @@
     <meta charset="UTF-8">
     <title>Keylights - IVD智能故障分析平台</title>
     <style>
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { 
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
@@ -104,7 +108,7 @@
             border: 2px solid #e2e8f0;
             border-radius: 10px;
             font-size: clamp(0.82rem, 0.95vw, 1rem);
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             background: #f7fafc;
         }
         input:focus {
@@ -123,7 +127,7 @@
             font-size: clamp(0.85rem, 0.95vw, 1rem);
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             margin-top: 8px;
         }
         button:hover {
@@ -196,7 +200,7 @@
             font-size: 1rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         .error-btn:hover {
             transform: translateY(-2px);

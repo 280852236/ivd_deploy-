@@ -13,7 +13,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%); padding: clamp(8px, 2vw, 20px); min-height: 100vh; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%); padding: clamp(8px, 2vw, 20px); min-height: 100vh; }
         .container { max-width: min(1200px, 95vw); margin: 0 auto; }
         .ivd-card { background: white; border-radius: 16px; padding: 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e8ecf1; margin-bottom: 24px; }
         .header-bar { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 16px; padding: 24px 28px; margin-bottom: 24px; color: white; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 20px rgba(245,158,11,0.3); }
@@ -25,7 +25,7 @@
         .form-label-custom { font-weight: 600; color: #475569; margin-bottom: 6px; font-size: 0.9rem; }
         .form-control-custom { border-radius: 10px; border: 2px solid #e8ecf1; padding: 10px 14px; transition: border-color 0.2s; }
         .form-control-custom:focus { border-color: #f59e0b; box-shadow: 0 0 0 3px rgba(245,158,11,0.15); outline: none; }
-        .btn-primary-custom { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none; border-radius: 10px; padding: 10px 20px; font-weight: 600; cursor: pointer; transition: all 0.3s; }
+        .btn-primary-custom { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color: white; border: none; border-radius: 10px; padding: 10px 20px; font-weight: 600; cursor: pointer; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .btn-primary-custom:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(245,158,11,0.4); color: white; }
         .btn-copy { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); color: white; border: none; border-radius: 8px; padding: 8px 16px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 0.85rem; }
         .btn-copy:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(59,130,246,0.4); }

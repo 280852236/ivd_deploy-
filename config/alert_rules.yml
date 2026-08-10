@@ -45,3 +45,20 @@ groups:
         annotations:
           summary: "5xx错误率超过10%"
           description: "端点 {{ $labels.endpoint }} 5xx错误率 {{ $value | humanizePercentage }}"
+      - alert: ContainerMemoryHigh
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) > 0.80
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "容器内存使用超过80%"
+          description: "容器 {{ $labels.name }} 内存使用率 {{ $value | humanizePercentage }}"
+
+      - alert: ContainerMemoryCritical
+        expr: (container_memory_usage_bytes / container_spec_memory_limit_bytes) > 0.90
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "容器内存使用超过90%！即将OOM"
+          description: "容器 {{ $labels.name }} 内存使用率 {{ $value | humanizePercentage }}，需要立即处理"

@@ -2,6 +2,7 @@
 
 -- 创建必要扩展
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
 -- 创建users表（用户账户）
 CREATE TABLE IF NOT EXISTS users (
@@ -215,6 +216,7 @@ CREATE INDEX IF NOT EXISTS idx_hwf_img_venus100_fid ON hardware_failure_images_v
 
 -- GIN trigram 全文搜索索引（加速 ILIKE '%xxx%' 查询）
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 
 -- 硬件故障表 GIN 索引
 DO $$

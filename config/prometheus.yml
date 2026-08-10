@@ -20,6 +20,19 @@ scrape_configs:
       - targets: ['web:8081']
     metrics_path: '/metrics'
 
+  - job_name: 'go-parser'
+    static_configs:
+      - targets: ['go-parser:8082']
+    metrics_path: '/metrics'
+
   - job_name: 'node-exporter'
     static_configs:
       - targets: ['node-exporter:9100']
+
+  - job_name: 'postgres-exporter'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+
+  - job_name: 'redis-exporter'
+    static_configs:
+      - targets: ['redis-exporter:9121']

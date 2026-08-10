@@ -322,3 +322,59 @@ def cleanup_expired_zip_files_task():
     except Exception as e:
         logger.exception(f"清理过期ZIP文件失败: {e}")
         raise
+
+@celery.task(name='cleanup_old_uploads')
+def cleanup_old_uploads_task():
+    """清理超过7天的上传文件"""
+    import time as _time
+    upload_dir = os.getenv('UPLOAD_DIR', '/app/uploads')
+    max_age_days = 7
+    now = _time.time()
+    cleaned = 0
+    try:
+        if os.path.exists(upload_dir):
+            for name in os.listdir(upload_dir):
+                path = os.path.join(upload_dir, name)
+                try:
+                    age_days = (now - os.path.getmtime(path)) / 86400
+                    if age_days > max_age_days and name.startswith('ivd_upload_'):
+                        if os.path.isdir(path):
+                            shutil.rmtree(path, ignore_errors=True)
+                        else:
+                            os.remove(path)
+                        cleaned += 1
+                except Exception:
+                    pass
+        logger.info(f"上传文件清理完成: 删除{cleaned}个超过{max_age_days}天的文件")
+        return {'status': 'completed', 'cleaned_count': cleaned}
+    except Exception as e:
+        logger.exception(f"上传文件清理失败: {e}")
+        raise
+
+@celery.task(name='memory_cleanup')
+def memory_cleanup_task():
+    """定期内存清理：GC回收+缓存清理+内存报告"""
+    import gc
+    import time as _time
+    try:
+        before_count = len(gc.get_objects())
+        collected = gc.collect()
+        after_count = len(gc.get_objects())
+        try:
+            import shared
+            with shared._table_cache_lock:
+                shared._table_cache.clear()
+                shared._table_cache_time.clear()
+            shared._conn_last_validated.clear()
+        except Exception:
+            pass
+        try:
+            r = shared.get_redis()
+            r.execute_command('MEMORY', 'PURGE')
+        except Exception:
+            pass
+        logger.info(f"内存清理: GC回收{collected}对象, 对象数{before_count}->{after_count}, 缓存已清")
+        return {'status': 'completed', 'gc_collected': collected, 'objects_before': before_count, 'objects_after': after_count}
+    except Exception as e:
+        logger.exception(f"内存清理失败: {e}")
+        raise

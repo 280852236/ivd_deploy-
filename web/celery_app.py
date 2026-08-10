@@ -60,4 +60,12 @@ celery.conf.beat_schedule = {
         'task': 'cleanup_expired_zip_files',
         'schedule': crontab(minute='*/10'),
     },
+    'cleanup-old-uploads-daily': {
+        'task': 'cleanup_old_uploads',
+        'schedule': crontab(hour='3', minute='0'),
+    },
+    'memory-cleanup-every-30-minutes': {
+        'task': 'memory_cleanup',
+        'schedule': crontab(minute='*/30'),
+    },
 }
