@@ -25,6 +25,7 @@ x-web-env: &web-env
   ANALYSIS_TTL_HOURS: "2"
   MAX_CONTENT_LENGTH: "209715200"
   UPLOAD_DIR: /app/uploads
+  DB_MAX_CONN: "5"
 
 x-web-common: &web-common
   build:
@@ -66,7 +67,7 @@ services:
       -c max_connections=50
       -c shared_preload_libraries=pg_stat_statements
       -c log_min_duration_statement=1000
-      -c autovacuum_naptime=30s
+      -c autovacuum_naptime=60s
       -c max_wal_size=512MB
       -c min_wal_size=128MB
     volumes:
@@ -190,7 +191,7 @@ services:
 
   worker:
     <<: *web-common
-    command: celery -A celery_app worker --pool=gevent --concurrency=8 --loglevel=info --max-tasks-per-child=500 --heartbeat-interval=30
+    command: celery -A celery_app worker --pool=gevent --concurrency=4 --loglevel=info --max-tasks-per-child=500 --heartbeat-interval=30
     healthcheck:
       test: ["CMD-SHELL", "celery -A celery_app inspect ping --timeout 5 || exit 1"]
       interval: 30s
@@ -408,6 +409,10 @@ services:
   prometheus:
     image: prom/prometheus:latest
     logging: *default-logging
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
+      - '--storage.tsdb.retention.size=512MB'
     volumes:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
       - ./config/alert_rules.yml:/etc/prometheus/alert_rules.yml
