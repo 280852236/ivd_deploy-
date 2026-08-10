@@ -2,7 +2,7 @@
 THRESHOLD="${MEM_GUARD_THRESHOLD:-85}"
 LOG="/backups/memory-guard.log"
 echo "$(date '+%Y-%m-%d %H:%M:%S') memory guard check (threshold=${THRESHOLD}%)" >> "$LOG"
-for name in web worker beat; do
+for name in web worker beat pgbouncer; do
   container="ivd_deploy-${name}-1"
   stats=$(docker stats --no-stream --format "{{.MemPerc}}" "$container" 2>/dev/null | tr -d '%')
   if [ -n "$stats" ]; then

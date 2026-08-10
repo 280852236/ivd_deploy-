@@ -5,13 +5,13 @@ x-logging: &default-logging
     max-file: "3"
 
 x-web-env: &web-env
-  DB_HOST: postgres
+  DB_HOST: pgbouncer
   REDIS_HOST: redis
   GO_PARSER_HOST: go-parser
-  DB_HOST_IP: 172.28.0.10
+  DB_HOST_IP: 172.28.0.23
   REDIS_HOST_IP: 172.28.0.11
   GO_PARSER_HOST_IP: 172.28.0.12
-  DB_PORT: "5432"
+  DB_PORT: "6432"
   DB_USER: ivd_user
   DB_PASSWORD: ${DB_PASSWORD:-ivd_pass}
   DB_NAME: ivd_fault_db
@@ -34,6 +34,8 @@ x-web-common: &web-common
   depends_on:
     postgres:
       condition: service_healthy
+    pgbouncer:
+      condition: service_healthy
     redis:
       condition: service_healthy
     go-parser:
@@ -55,9 +57,9 @@ services:
       -c random_page_cost=1.1
       -c wal_buffers=16MB
       -c default_statistics_target=100
-      -c shared_buffers=2GB
-      -c effective_cache_size=6GB
-      -c work_mem=8MB
+      -c shared_buffers=256MB
+      -c effective_cache_size=512MB
+      -c work_mem=4MB
       -c maintenance_work_mem=128MB
       -c checkpoint_completion_target=0.9
       -c effective_io_concurrency=200
@@ -106,6 +108,33 @@ services:
       ivd_net:
         ipv4_address: 172.28.0.11
 
+  pgbouncer:
+    build:
+      context: ./pgbouncer
+      dockerfile: Dockerfile
+    logging: *default-logging
+    environment:
+      DB_USER: ivd_user
+      DB_PASSWORD: ${DB_PASSWORD:-ivd_pass}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -p 6432 -U ivd_user || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.25'
+    restart: unless-stopped
+    networks:
+      ivd_net:
+        ipv4_address: 172.28.0.23
+
   go-parser:
     build:
       context: ./go-parser
@@ -139,7 +168,7 @@ services:
 
   web:
     <<: *web-common
-    command: gunicorn -w 6 -k gevent -b 0.0.0.0:8081 app:app --preload --keep-alive 5 --access-logfile - --error-logfile - --timeout 120 --graceful-timeout 30 --max-requests 500 --max-requests-jitter 100
+    command: gunicorn -w 4 -k gevent -b 0.0.0.0:8081 app:app --preload --keep-alive 5 --access-logfile - --error-logfile - --timeout 120 --graceful-timeout 30 --max-requests 500 --max-requests-jitter 100
     healthcheck:
       test: ["CMD-SHELL", "curl -sf http://localhost:8081/api/health || exit 1"]
       interval: 15s
@@ -194,7 +223,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 256M
           cpus: '0.25'
     environment:
       <<: *web-env
