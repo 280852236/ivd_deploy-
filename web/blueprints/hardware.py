@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify, session, redirect, url_for, make_
 from psycopg2.extras import RealDictCursor, execute_batch
 import shared
 from shared import api_login_required, api_super_admin_required, login_required
+from services.cache import api_cache, invalidate_cache
 import json
 import logging
 
@@ -30,6 +31,7 @@ hardware_bp = Blueprint('hardware', __name__)
 
 
 @hardware_bp.route('/api/hardware-failures', methods=['GET'])
+@api_cache(ttl=60, key_prefix='hw')
 def get_hardware_failures():
     model = request.args.get('model', '').strip()
     page = max(1, request.args.get('page', 1, type=int))
@@ -248,6 +250,7 @@ _BOOTLOADER_HEADER_MAP = {
 
 
 @hardware_bp.route('/api/board-compat/pcba', methods=['GET'])
+@api_cache(ttl=300, key_prefix='pcba')
 def get_pcba_compat():
     model = request.args.get('model', '').strip()
     keyword = request.args.get('keyword', '').strip()
@@ -276,6 +279,7 @@ def get_pcba_compat():
 
 
 @hardware_bp.route('/api/board-compat/bootloader', methods=['GET'])
+@api_cache(ttl=300, key_prefix='boot')
 def get_bootloader_compat():
     model = request.args.get('model', '').strip()
     keyword = request.args.get('keyword', '').strip()

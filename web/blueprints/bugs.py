@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify, session, redirect, url_for, make_
 from psycopg2.extras import RealDictCursor
 import shared
 from shared import api_login_required, api_super_admin_required, login_required
+from services.cache import api_cache
 
 def _bug_table(model):
     return shared.resolve_table(model, 'software_bugs')
@@ -26,6 +27,7 @@ def bugs_page():
 
 
 @bugs_bp.route('/api/bugs', methods=['GET'])
+@api_cache(ttl=60, key_prefix='bugs')
 def get_bugs():
     model = request.args.get('model', '').strip()
     version = request.args.get('version', '')

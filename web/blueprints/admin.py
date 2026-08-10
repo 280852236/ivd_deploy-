@@ -12,6 +12,7 @@ import json
 import time
 import shared
 from shared import api_login_required, api_super_admin_required, login_required
+from services.cache import api_cache
 from services.rules import get_rules, clear_rules_cache
 from services.file_utils import validate_input
 from services.data_init import get_table_name
@@ -225,6 +226,7 @@ def delete_rule_api(rule_id):
 
 
 @admin_bp.route('/api/motor_status', methods=['GET'])
+@api_cache(ttl=300, key_prefix='motor')
 def get_motor_status():
     model = request.args.get('model', '')
     limit = request.args.get('limit', 100, type=int)

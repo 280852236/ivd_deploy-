@@ -236,7 +236,7 @@ services:
     image: prometheuscommunity/postgres-exporter:latest
     logging: *default-logging
     environment:
-      DATA_SOURCE_NAME: "postgresql://ivd_user:cnNhJo4z1QmYgi8feCjP@postgres:5432/ivd_fault_db?sslmode=disable"
+      DATA_SOURCE_NAME: "postgresql://ivd_user:${DB_PASSWORD:-ivd_pass}@postgres:5432/ivd_fault_db?sslmode=disable"
     depends_on:
       postgres:
         condition: service_healthy

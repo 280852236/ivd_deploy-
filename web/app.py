@@ -58,6 +58,19 @@ def before_request():
         except Exception:
             pass
 
+    if request.method in ('POST', 'PUT', 'DELETE', 'PATCH') and request.path.startswith('/api/') and request.path not in ('/api/health', '/api/csrf-token', '/api/login'):
+        session_token = session.get('csrf_token')
+        if session_token:
+            provided = request.headers.get('X-CSRFToken') or request.args.get('csrf_token') or request.form.get('csrf_token')
+            if not provided:
+                try:
+                    provided = request.get_json(silent=True, force=True).get('csrf_token')
+                except Exception:
+                    pass
+            if provided and provided != session_token:
+                logger.warning(f"CSRF验证失败: {request.method} {request.path}")
+                return jsonify({'error': 'CSRF验证失败'}), 403
+
 @app.after_request
 def after_request(response):
     if hasattr(request, 'start_time'):
@@ -79,6 +92,28 @@ app.register_blueprint(lis_bp)
 app.register_blueprint(bugs_bp)
 app.register_blueprint(hardware_bp)
 app.register_blueprint(admin_bp)
+
+
+# ========== 全局错误处理 ==========
+@app.errorhandler(404)
+def not_found_error(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'error': '资源不存在'}), 404
+    return redirect(url_for('index'))
+
+@app.errorhandler(500)
+def internal_error(e):
+    logger.exception(f"内部错误: {request.method} {request.path}")
+    if request.path.startswith('/api/'):
+        return jsonify({'error': '服务器内部错误'}), 500
+    return jsonify({'error': '服务器内部错误'}), 500
+
+@app.errorhandler(Exception)
+def unhandled_exception(e):
+    logger.exception(f"未捕获异常: {request.method} {request.path}: {e}")
+    if request.path.startswith('/api/'):
+        return jsonify({'error': '服务器内部错误'}), 500
+    return jsonify({'error': '服务器内部错误'}), 500
 
 
 # ========== 加载模板 ==========
