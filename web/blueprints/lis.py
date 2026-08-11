@@ -896,7 +896,7 @@ body { background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Seg
                 <h6 class="mb-3"><i class="bi bi-gear me-1"></i> 消息配置</h6>
                 <div class="mb-3">
                     <label class="form-label">消息类型</label>
-                    <select class="form-select" id="msgType">
+                    <select class="form-select" id="msgType" onchange="syncTemplate()">
                         <option value="QRY^Q02">QRY^Q02 (查询)</option>
                         <option value="ORU^R01">ORU^R01 (结果上报)</option>
                         <option value="ACK^R01">ACK^R01 (确认)</option>
@@ -938,35 +938,11 @@ body { background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Seg
                         <div class="col-3"><input type="text" class="form-control form-control-sm" id="testRef" value="3.9-6.1" placeholder="参考范围"></div>
                     </div>
                 </div>
-                <hr>
-                <h6 class="mb-3"><i class="bi bi-router me-1"></i> 目标服务器 (可选)</h6>
-                <div class="row mb-3">
-                    <div class="col-7"><input type="text" class="form-control" id="targetHost" placeholder="LIS服务器IP (如 192.168.1.100)"></div>
-                    <div class="col-3"><input type="number" class="form-control" id="targetPort" placeholder="端口" value="2575"></div>
-                    <div class="col-2"><input type="number" class="form-control" id="timeout" placeholder="超时" value="5"></div>
-                </div>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-generate" onclick="generateMsg()"><i class="bi bi-code-slash me-1"></i> 仅生成消息</button>
-                    <button class="btn btn-send" onclick="sendMsg()"><i class="bi bi-send me-1"></i> 发送并等待响应</button>
-                </div>
             </div>
         </div>
         <div class="col-lg-6">
             <div class="sim-card">
-                <h6 class="mb-2"><i class="bi bi-arrow-right me-1"></i> 发送消息 <span id="sendStatus"></span></h6>
-                <div class="msg-preview" id="msgPreview">点击上方按钮生成或发送消息...</div>
-            </div>
-            <div class="sim-card">
-                <h6 class="mb-2"><i class="bi bi-arrow-left me-1"></i> 响应消息 <span id="respStatus"></span></h6>
-                <div class="resp-preview" id="respPreview">等待响应...</div>
-            </div>
-        </div>
-    </div>
-    <!-- 标准模板参考区 -->
-    <div class="row mt-3">
-        <div class="col-12">
-            <div class="sim-card">
-                <h5 class="mb-3"><i class="bi bi-book me-1"></i> HL7 标准模板参考 <span style="font-size:0.8rem;color:#94a3b8;font-weight:normal;">（点击消息类型切换模板）</span></h5>
+                <h5 class="mb-3"><i class="bi bi-book me-1"></i> HL7 标准模板参考</h5>
                 <div class="mb-2">
                     <button class="btn btn-sm btn-outline-primary active" id="tplBtnQry" onclick="showTemplate('qry')">QRY^Q02 查询</button>
                     <button class="btn btn-sm btn-outline-primary" id="tplBtnOru" onclick="showTemplate('oru')">ORU^R01 结果上报</button>
@@ -1050,63 +1026,12 @@ function showTemplate(type) {
     document.getElementById('tplBtnQry').classList.toggle('active', type === 'qry');
     document.getElementById('tplBtnOru').classList.toggle('active', type === 'oru');
     document.getElementById('tplBtnAck').classList.toggle('active', type === 'ack');
-}
-document.getElementById('msgType').addEventListener('change', function() {
-    document.getElementById('oruFields').style.display = this.value.startsWith('ORU') ? 'block' : 'none';
-});
-function getFields() {
-    const f = {
-        sending_app: document.getElementById('sendingApp').value,
-        receiving_app: document.getElementById('receivingApp').value,
-        sending_fac: document.getElementById('sendingFac').value,
-        receiving_fac: document.getElementById('receivingFac').value,
-    };
-    if (document.getElementById('msgType').value.startsWith('ORU')) {
-        f.patient_id = document.getElementById('patientId').value;
-        f.patient_name = document.getElementById('patientName').value;
-        f.gender = document.getElementById('gender').value;
-        f.dob = document.getElementById('dob').value;
-        f.results = [{test: document.getElementById('testName').value, value: document.getElementById('testValue').value, unit: document.getElementById('testUnit').value, ref_range: document.getElementById('testRef').value}];
-    }
-    return f;
-}
-function escapePreview(text) {
-    return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\\x0b/g,'[VT]').replace(/\\x1c/g,'[FS]').replace(/\\r/g,'[CR]');
-}
-async function generateMsg() {
-    const body = {msg_type: document.getElementById('msgType').value, fields: getFields()};
-    const resp = await fetch('/api/lis/simulate', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
-    const data = await resp.json();
-    document.getElementById('msgPreview').textContent = data.hl7_message || '';
-    document.getElementById('sendStatus').innerHTML = '<span class="status-badge status-success">已生成</span>';
-    document.getElementById('respPreview').textContent = '仅生成模式，未发送';
-}
-async function sendMsg() {
-    const host = document.getElementById('targetHost').value;
-    const port = parseInt(document.getElementById('targetPort').value) || 2575;
-    const timeout = parseInt(document.getElementById('timeout').value) || 5;
-    if (!host) { alert('请输入LIS服务器IP地址'); return; }
-    const body = {msg_type: document.getElementById('msgType').value, host, port, timeout, fields: getFields()};
-    document.getElementById('sendStatus').innerHTML = '<span class="status-badge status-timeout">发送中...</span>';
-    document.getElementById('msgPreview').textContent = '正在发送...';
-    document.getElementById('respPreview').textContent = '等待响应...';
-    try {
-        const resp = await fetch('/api/lis/simulate', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
-        const data = await resp.json();
-        document.getElementById('msgPreview').textContent = data.hl7_message || '';
-        if (data.status === 'success') {
-            document.getElementById('sendStatus').innerHTML = '<span class="status-badge status-success">发送成功</span>';
-            document.getElementById('respPreview').textContent = data.response || '(空响应)';
-            document.getElementById('respStatus').innerHTML = '<span class="status-badge status-success">' + data.response_length + ' 字节</span>';
-        } else {
-            document.getElementById('sendStatus').innerHTML = '<span class="status-badge status-error">' + (data.status || '失败') + '</span>';
-            document.getElementById('respPreview').textContent = data.error || '未知错误';
-            document.getElementById('respStatus').innerHTML = '<span class="status-badge status-error">失败</span>';
-        }
-    } catch(e) {
-        document.getElementById('sendStatus').innerHTML = '<span class="status-badge status-error">请求失败</span>';
-        document.getElementById('respPreview').textContent = e.message;
-    }
+function syncTemplate() {
+    const msgType = document.getElementById('msgType').value;
+    document.getElementById('oruFields').style.display = msgType.startsWith('ORU') ? 'block' : 'none';
+    if (msgType.startsWith('QRY')) showTemplate('qry');
+    else if (msgType.startsWith('ORU')) showTemplate('oru');
+    else if (msgType.startsWith('ACK')) showTemplate('ack');
 }
 </script>
 </body>
