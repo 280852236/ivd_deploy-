@@ -962,8 +962,95 @@ body { background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Seg
             </div>
         </div>
     </div>
+    <!-- 标准模板参考区 -->
+    <div class="row mt-3">
+        <div class="col-12">
+            <div class="sim-card">
+                <h5 class="mb-3"><i class="bi bi-book me-1"></i> HL7 标准模板参考 <span style="font-size:0.8rem;color:#94a3b8;font-weight:normal;">（点击消息类型切换模板）</span></h5>
+                <div class="mb-2">
+                    <button class="btn btn-sm btn-outline-primary active" id="tplBtnQry" onclick="showTemplate('qry')">QRY^Q02 查询</button>
+                    <button class="btn btn-sm btn-outline-primary" id="tplBtnOru" onclick="showTemplate('oru')">ORU^R01 结果上报</button>
+                    <button class="btn btn-sm btn-outline-primary" id="tplBtnAck" onclick="showTemplate('ack')">ACK 确认</button>
+                </div>
+                <div id="tplQry">
+                    <div class="msg-preview" style="color:#e2e8f0;">MSH|^~\\&|IVD|IVD_LAB|LIS|HIS|20260811143000||QRY^Q02|IVD20260811143000|P|2.4
+QRD|20260811143000|R|IVD20260811143000|||||LAB|||||
+QRF|ALL|||||</div>
+                    <table class="table table-sm table-bordered mt-2" style="font-size:0.8rem;">
+                        <thead><tr style="background:#f1f5f9;"><th width="80">段</th><th width="60">字段</th><th width="120">名称</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td rowspan="6"><b>MSH</b><br>消息头</td><td>MSH-1</td><td>字段分隔符</td><td>| 竖线，所有段必须以此开头</td></tr>
+                            <tr><td>MSH-2</td><td>编码字符</td><td>^~\\& 分别为：组件/重复/转义/子组件分隔符</td></tr>
+                            <tr><td>MSH-3</td><td>发送应用</td><td>IVD — 发送方应用名（本设备）</td></tr>
+                            <tr><td>MSH-5</td><td>接收应用</td><td>LIS — 接收方应用名（目标系统）</td></tr>
+                            <tr><td>MSH-8</td><td>消息类型</td><td><b>QRY^Q02</b> — 查询消息^触发事件</td></tr>
+                            <tr><td>MSH-10</td><td>消息控制ID</td><td>唯一标识，用于配对请求和响应</td></tr>
+                            <tr><td rowspan="3"><b>QRD</b><br>查询定义</td><td>QRD-1</td><td>查询时间</td><td>格式: YYYYMMDDHHMMSS</td></tr>
+                            <tr><td>QRD-3</td><td>查询ID</td><td>与MSH-10一致，用于响应配对</td></tr>
+                            <tr><td>QRD-8</td><td>查询内容</td><td><b>LAB</b> — 查询检验项目</td></tr>
+                            <tr><td><b>QRF</b><br>查询过滤</td><td>QRF-1</td><td>过滤值</td><td><b>ALL</b> — 查询全部结果</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="tplOru" style="display:none;">
+                    <div class="msg-preview" style="color:#e2e8f0;">MSH|^~\\&|IVD|IVD_LAB|LIS|HIS|20260811143000||ORU^R01|IVD20260811143000|P|2.4
+PID|||P001||张三||19900101|M
+OBR|||S001||GLU||20260811143000
+OBX|NM|GLU^GLU|||5.2|mmol/L|3.9-6.1|||F|||20260811143000</div>
+                    <table class="table table-sm table-bordered mt-2" style="font-size:0.8rem;">
+                        <thead><tr style="background:#f1f5f9;"><th width="80">段</th><th width="60">字段</th><th width="120">名称</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><b>MSH</b></td><td>MSH-8</td><td>消息类型</td><td><b>ORU^R01</b> — 结果上报消息</td></tr>
+                            <tr><td rowspan="4"><b>PID</b><br>患者信息</td><td>PID-3</td><td>患者ID</td><td>P001 — 病员号/住院号</td></tr>
+                            <tr><td>PID-5</td><td>患者姓名</td><td>张三 — 患者名称</td></tr>
+                            <tr><td>PID-7</td><td>出生日期</td><td>格式: YYYYMMDD</td></tr>
+                            <tr><td>PID-8</td><td>性别</td><td>M=男 F=女 O=其他</td></tr>
+                            <tr><td rowspan="2"><b>OBR</b><br>检验请求</td><td>OBR-3</td><td>样本号</td><td>S001 — 样本条码/编号</td></tr>
+                            <tr><td>OBR-5</td><td>检验项目</td><td>GLU — 葡萄糖检测</td></tr>
+                            <tr><td rowspan="5"><b>OBX</b><br>结果数据</td><td>OBX-2</td><td>值类型</td><td>NM=数值 ST=文本</td></tr>
+                            <tr><td>OBX-3</td><td>项目编号</td><td>GLU^GLU — 项目码^项目名</td></tr>
+                            <tr><td>OBX-5</td><td>检测值</td><td><b>5.2</b> — 实际检测结果</td></tr>
+                            <tr><td>OBX-6</td><td>单位</td><td>mmol/L — 结果单位</td></tr>
+                            <tr><td>OBX-7</td><td>参考范围</td><td>3.9-6.1 — 正常范围</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div id="tplAck" style="display:none;">
+                    <div class="msg-preview" style="color:#e2e8f0;">MSH|^~\\&|LIS|HIS|IVD|IVD_LAB|20260811143001||ACK^R01|LIS20260811143001|P|2.4
+MSA|AA|IVD20260811143000</div>
+                    <table class="table table-sm table-bordered mt-2" style="font-size:0.8rem;">
+                        <thead><tr style="background:#f1f5f9;"><th width="80">段</th><th width="60">字段</th><th width="120">名称</th><th>说明</th></tr></thead>
+                        <tbody>
+                            <tr><td><b>MSH</b></td><td>MSH-8</td><td>消息类型</td><td><b>ACK^R01</b> — 确认响应</td></tr>
+                            <tr><td rowspan="2"><b>MSA</b><br>确认段</td><td>MSA-1</td><td>确认码</td><td><b>AA</b>=接受 AE=错误 AR=拒绝</td></tr>
+                            <tr><td>MSA-2</td><td>消息控制ID</td><td>必须与请求的MSH-10一致，表示对哪条消息的确认</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-3 p-3" style="background:#fef3c7;border-radius:8px;font-size:0.85rem;">
+                    <b><i class="bi bi-lightbulb me-1"></i>关键要点：</b>
+                    <ul class="mb-0 mt-1">
+                        <li><b>帧格式</b>：完整消息以 <code>[VT]</code>(\x0b) 开头，<code>[FS][CR]</code>(\x1c\r) 结尾</li>
+                        <li><b>段分隔</b>：段与段之间用 <code>\r</code>(回车) 分隔，不是换行</li>
+                        <li><b>字段分隔</b>：字段内用 <code>|</code> 分隔，组件用 <code>^</code> 分隔</li>
+                        <li><b>配对规则</b>：QRY^Q02 → DSR^Q03（查询→响应），ORU^R01 → ACK^R01（上报→确认）</li>
+                        <li><b>控制ID</b>：MSH-10是消息唯一标识，响应的MSA-2必须与请求的MSH-10匹配</li>
+                        <li><b>超时机制</b>：30秒内未收到响应视为通信异常</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 <script>
+function showTemplate(type) {
+    document.getElementById('tplQry').style.display = type === 'qry' ? 'block' : 'none';
+    document.getElementById('tplOru').style.display = type === 'oru' ? 'block' : 'none';
+    document.getElementById('tplAck').style.display = type === 'ack' ? 'block' : 'none';
+    document.getElementById('tplBtnQry').classList.toggle('active', type === 'qry');
+    document.getElementById('tplBtnOru').classList.toggle('active', type === 'oru');
+    document.getElementById('tplBtnAck').classList.toggle('active', type === 'ack');
+}
 document.getElementById('msgType').addEventListener('change', function() {
     document.getElementById('oruFields').style.display = this.value.startsWith('ORU') ? 'block' : 'none';
 });
