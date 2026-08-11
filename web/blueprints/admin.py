@@ -239,20 +239,17 @@ def get_motor_status():
         cur.execute("SELECT tablename FROM pg_tables WHERE tablename = %s", (table_name,))
         if not cur.fetchone():
             return jsonify({'total': 0, 'data': [], 'limit': limit, 'offset': offset, 'model': model})
+        cur.execute(f'SELECT COUNT(*) AS total FROM {table_name}')
+        total = cur.fetchone()['total']
         cur.execute(f'''
-            SELECT COUNT(*) OVER() AS total, id, board_card, motor_code, status_code, motor_name,
+            SELECT id, board_card, motor_code, status_code, motor_name,
                    action_type, target_value, sensor, description, full_description
             FROM {table_name}
             ORDER BY board_card, motor_code, status_code
             LIMIT %s OFFSET %s
         ''', (limit, offset))
         rows = cur.fetchall()
-        total = rows[0]['total'] if rows else 0
-        data = []
-        for row in rows:
-            d = dict(row)
-            d.pop('total', None)
-            data.append(d)
+        data = [dict(row) for row in rows]
         return jsonify({
             'total': total,
             'data': data,
@@ -423,11 +420,11 @@ def list_users():
     per_page = min(50, max(1, request.args.get('per_page', 20, type=int)))
     with shared.db_connection() as conn:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute('SELECT COUNT(*) OVER() AS total, id, username, permission, is_active, created_at, last_login_at FROM users ORDER BY id LIMIT %s OFFSET %s', (per_page, (page - 1) * per_page))
+        cur.execute('SELECT COUNT(*) AS total FROM users')
+        total = cur.fetchone()['total']
+        cur.execute('SELECT id, username, permission, is_active, created_at, last_login_at FROM users ORDER BY id LIMIT %s OFFSET %s', (per_page, (page - 1) * per_page))
         rows = cur.fetchall()
-        total = rows[0]['total'] if rows else 0
         for row in rows:
-            row.pop('total', None)
             shared.format_row_timestamps(row)
             if row.get('last_login_at'):
                 row['last_login_at'] = row['last_login_at'].strftime('%Y-%m-%d %H:%M:%S') if hasattr(row['last_login_at'], 'strftime') else str(row['last_login_at'])

@@ -44,11 +44,11 @@ def get_hardware_failures():
     img_tbl = shared.safe_img_table(model, 'hardware_failure_images')
     with shared.db_connection() as conn:
         cur = conn.cursor(cursor_factory=RealDictCursor)
-        cur.execute(f'SELECT COUNT(*) OVER() AS total, h.id, %s AS model, h.phenomenon, h.cause, h.workaround, h.process, h.suggestion, h.solution, h.created_at, h.updated_at, COALESCE(img_cnt.cnt, 0) AS image_count FROM {tbl} h LEFT JOIN (SELECT failure_id, COUNT(*) AS cnt FROM {img_tbl} GROUP BY failure_id) img_cnt ON img_cnt.failure_id = h.id ORDER BY h.created_at DESC LIMIT %s OFFSET %s', [model, per_page, (page - 1) * per_page])
+        cur.execute(f'SELECT COUNT(*) AS total FROM {tbl} h')
+        total = cur.fetchone()['total']
+        cur.execute(f'SELECT h.id, %s AS model, h.phenomenon, h.cause, h.workaround, h.process, h.suggestion, h.solution, h.created_at, h.updated_at, COALESCE(img_cnt.cnt, 0) AS image_count FROM {tbl} h LEFT JOIN (SELECT failure_id, COUNT(*) AS cnt FROM {img_tbl} GROUP BY failure_id) img_cnt ON img_cnt.failure_id = h.id ORDER BY h.created_at DESC LIMIT %s OFFSET %s', [model, per_page, (page - 1) * per_page])
         rows = cur.fetchall()
-        total = rows[0]['total'] if rows else 0
         for row in rows:
-            row.pop('total', None)
             shared.format_row_timestamps(row)
         return jsonify({'results': [dict(r) for r in rows], 'total': total, 'page': page, 'per_page': per_page})
 
@@ -192,8 +192,10 @@ def search_hardware_failures():
         cur = conn.cursor(cursor_factory=RealDictCursor)
         search_pattern = f'%{q}%'
         where_clause = "h.phenomenon ILIKE %s OR h.cause ILIKE %s OR h.workaround ILIKE %s OR h.process ILIKE %s OR h.suggestion ILIKE %s OR h.solution ILIKE %s"
+        cur.execute(f'SELECT COUNT(*) AS total FROM {tbl} h WHERE {where_clause}', [search_pattern]*6)
+        total = cur.fetchone()['total']
         cur.execute(f"""
-            SELECT *, COUNT(*) OVER() AS total FROM (
+            SELECT * FROM (
                 SELECT h.id, %s AS model, h.phenomenon, h.cause, h.workaround,
                        h.process, h.suggestion, h.solution,
                        h.created_at, h.updated_at,
@@ -205,9 +207,7 @@ def search_hardware_failures():
             ) sub LIMIT %s OFFSET %s
         """, [model, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, search_pattern, per_page, (page - 1) * per_page])
         rows = cur.fetchall()
-        total = rows[0]['total'] if rows else 0
         for row in rows:
-            row.pop('total', None)
             shared.format_row_timestamps(row)
         return jsonify({'results': [dict(r) for r in rows], 'total': total, 'page': page, 'per_page': per_page})
 
@@ -267,13 +267,15 @@ def get_pcba_compat():
         if keyword:
             search_pattern = f'%{keyword}%'
             conditions = ' OR '.join(f'{f} ILIKE %s' for f in _PCBA_FIELDS)
-            cur.execute(f'SELECT *, COUNT(*) OVER() AS total FROM {tbl} WHERE {conditions} ORDER BY id LIMIT %s OFFSET %s', [search_pattern]*len(_PCBA_FIELDS) + [per_page, offset])
+            cur.execute(f'SELECT COUNT(*) AS total FROM {tbl} WHERE {conditions}', [search_pattern]*len(_PCBA_FIELDS))
+            total = cur.fetchone()['total']
+            cur.execute(f'SELECT * FROM {tbl} WHERE {conditions} ORDER BY id LIMIT %s OFFSET %s', [search_pattern]*len(_PCBA_FIELDS) + [per_page, offset])
         else:
-            cur.execute(f'SELECT *, COUNT(*) OVER() AS total FROM {tbl} ORDER BY id LIMIT %s OFFSET %s', [per_page, offset])
+            cur.execute(f'SELECT COUNT(*) AS total FROM {tbl}')
+            total = cur.fetchone()['total']
+            cur.execute(f'SELECT * FROM {tbl} ORDER BY id LIMIT %s OFFSET %s', [per_page, offset])
         rows = cur.fetchall()
-        total = rows[0]['total'] if rows else 0
         for row in rows:
-            row.pop('total', None)
             shared.format_row_timestamps(row)
         return jsonify({'results': [dict(r) for r in rows], 'total': total, 'page': page, 'per_page': per_page})
 
@@ -296,13 +298,15 @@ def get_bootloader_compat():
         if keyword:
             search_pattern = f'%{keyword}%'
             conditions = ' OR '.join(f'{f} ILIKE %s' for f in _BOOTLOADER_FIELDS)
-            cur.execute(f'SELECT *, COUNT(*) OVER() AS total FROM {tbl} WHERE {conditions} ORDER BY id LIMIT %s OFFSET %s', [search_pattern]*len(_BOOTLOADER_FIELDS) + [per_page, offset])
+            cur.execute(f'SELECT COUNT(*) AS total FROM {tbl} WHERE {conditions}', [search_pattern]*len(_BOOTLOADER_FIELDS))
+            total = cur.fetchone()['total']
+            cur.execute(f'SELECT * FROM {tbl} WHERE {conditions} ORDER BY id LIMIT %s OFFSET %s', [search_pattern]*len(_BOOTLOADER_FIELDS) + [per_page, offset])
         else:
-            cur.execute(f'SELECT *, COUNT(*) OVER() AS total FROM {tbl} ORDER BY id LIMIT %s OFFSET %s', [per_page, offset])
+            cur.execute(f'SELECT COUNT(*) AS total FROM {tbl}')
+            total = cur.fetchone()['total']
+            cur.execute(f'SELECT * FROM {tbl} ORDER BY id LIMIT %s OFFSET %s', [per_page, offset])
         rows = cur.fetchall()
-        total = rows[0]['total'] if rows else 0
         for row in rows:
-            row.pop('total', None)
             shared.format_row_timestamps(row)
         return jsonify({'results': [dict(r) for r in rows], 'total': total, 'page': page, 'per_page': per_page})
 

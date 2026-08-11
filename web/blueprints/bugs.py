@@ -42,12 +42,13 @@ def get_bugs():
     with shared.db_connection() as conn:
         cur = conn.cursor(cursor_factory=RealDictCursor)
         where = 'WHERE b.software_version = %s' if version else ''
-        params = ([version] if version else []) + [model, per_page, (page - 1) * per_page]
-        cur.execute(f'SELECT COUNT(*) OVER() AS total, b.id, %s AS model, b.software_version, b.title, b.cause, b.workaround, b.solution, b.created_at, b.updated_at, COALESCE(img_cnt.cnt, 0) AS image_count FROM {tbl} b LEFT JOIN (SELECT bug_id, COUNT(*) AS cnt FROM {img_tbl} GROUP BY bug_id) img_cnt ON img_cnt.bug_id = b.id {where} ORDER BY b.created_at DESC LIMIT %s OFFSET %s', params)
+        count_params = [version] if version else []
+        cur.execute(f'SELECT COUNT(*) AS total FROM {tbl} b {where}', count_params)
+        total = cur.fetchone()['total']
+        data_params = ([version] if version else []) + [model, per_page, (page - 1) * per_page]
+        cur.execute(f'SELECT b.id, %s AS model, b.software_version, b.title, b.cause, b.workaround, b.solution, b.created_at, b.updated_at, COALESCE(img_cnt.cnt, 0) AS image_count FROM {tbl} b LEFT JOIN (SELECT bug_id, COUNT(*) AS cnt FROM {img_tbl} GROUP BY bug_id) img_cnt ON img_cnt.bug_id = b.id {where} ORDER BY b.created_at DESC LIMIT %s OFFSET %s', data_params)
         rows = cur.fetchall()
-        total = rows[0]['total'] if rows else 0
         for row in rows:
-            row.pop('total', None)
             shared.format_row_timestamps(row)
         return jsonify({'results': [dict(r) for r in rows], 'total': total, 'page': page, 'per_page': per_page})
 
