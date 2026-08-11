@@ -977,7 +977,7 @@ QRD|20260804091647||||||3|1230252993565|||||
 <span style="color:#d97706;">[LIS→设备] DSR^Q03 查询响应</span>
 MSH|^~\\&|KEYSMILE|SMART6500|0001||20260804091854||DSR^Q03|<span style="color:#ef4444;font-weight:700;">488</span>|P|2,3,1||||||ASCII|||
 DSP|1||7967635|||        <span style="color:#6366f1;">← 病员号</span>
-DSP|2||GONG RUN FANG|||  <span style="color:#6366f1;">← 姓名</span>
+DSP|2||张三|||  <span style="color:#6366f1;">← 姓名</span>
 DSP|3||F|||              <span style="color:#6366f1;">← 性别</span>
 DSP|4||78|||             <span style="color:#6366f1;">← 年龄</span>
 DSP|9||1230252993565|||  <span style="color:#6366f1;">← 样本号</span>
@@ -995,7 +995,7 @@ MSA|AA|<span style="color:#ef4444;font-weight:700;">1</span>|OK|||0|        <spa
 
 <span style="color:#059669;">[设备→LIS] ORU^R01 结果上报</span>
 MSH|^~\\&|KEYLIGHTS|VENUS9000|001||20260804101120||ORU^R01|<span style="color:#ef4444;font-weight:700;">511</span>|P|2.3.1||||1||utf-8|||
-PID|1||||7967635|GONG RUN FANG|78|F|||||||||||||||||||||||
+PID|1||||7967635|张三|78|F|||||||||||||||||||||||
 OBR|1|1230252993565|||KEYLIGHTS^VENUS9000|||20260804101120||||||||Ser/PI|||||||||||||||||||||||||||||||||
 OBX|1||499|ANA Screen|1686580|RU/mL|0|20||+||A|101.12|20260804101120||||抗核抗体|||||||||
 OBI|1|5|20251222080000|251222|ANA Screen|||||
@@ -1027,8 +1027,8 @@ MSH|^~\\&|KEYSMILE|SMART6500|0001||20260804091854||DSR^Q03|<span style="color:#e
 <span style="color:#6366f1;">  MSH-12=2,3,1(逗号分隔版本) MSH-18=ASCII(编码)</span><br>
 DSP|1||7967635|||<br>
 <span style="color:#6366f1;">  DSP-1=1(序号) DSP-3=7967635(病员号)</span><br>
-DSP|2||GONG RUN FANG|||<br>
-<span style="color:#6366f1;">  DSP-3=GONG RUN FANG(姓名)</span><br>
+DSP|2||张三|||<br>
+<span style="color:#6366f1;">  DSP-3=张三(姓名)</span><br>
 DSP|3||F|||<br>
 <span style="color:#6366f1;">  DSP-3=F(性别:女)</span><br>
 DSP|9||1230252993565|||<br>
@@ -1044,8 +1044,8 @@ DSP|19|1|410|nRNP/Sm||<br>
 <span style="color:#059669;">[设备→LIS] ORU^R01 结果上报</span>
 MSH|^~\\&|KEYLIGHTS|VENUS9000|001||20260804101120||ORU^R01|<span style="color:#ef4444;font-weight:700;">511</span>|P|2.3.1||||1||utf-8|||
 <span style="color:#6366f1;">  MSH-8=ORU^R01(结果上报) MSH-10=<span style="color:#ef4444;font-weight:700;">511</span>(控制ID) <span style="color:#ef4444;">⚠响应需一致</span></span>
-PID|1||||7967635|GONG RUN FANG|78|F|||||||||||||||||||||||
-<span style="color:#6366f1;">  PID-5=7967635(病员号) PID-6=GONG RUN FANG(姓名)</span>
+PID|1||||7967635|张三|78|F|||||||||||||||||||||||
+<span style="color:#6366f1;">  PID-5=7967635(病员号) PID-6=张三(姓名)</span>
 <span style="color:#6366f1;">  PID-8=78(年龄) PID-9=F(性别)</span>
 OBR|1|1230252993565|||KEYLIGHTS^VENUS9000|||20260804101120||||||||Ser/PI|||||||||||||||||||||||||||||||||
 <span style="color:#6366f1;">  OBR-3=1230252993565(样本号) OBR-5=KEYLIGHTS^VENUS9000(设备信息)</span>
