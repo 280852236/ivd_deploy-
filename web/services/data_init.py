@@ -142,8 +142,7 @@ def init_db():
                 keyword TEXT NOT NULL
             )
         """)
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_keyword ON rule_keywords(keyword)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_rule_keywords_rule_id ON rule_keywords(rule_id)")
+                cur.execute("CREATE INDEX IF NOT EXISTS idx_rule_keywords_rule_id ON rule_keywords(rule_id)")
         cur.execute("""
             CREATE TABLE IF NOT EXISTS version_history (
                 id SERIAL PRIMARY KEY,
@@ -193,10 +192,7 @@ def init_db():
             )
         """)
         cur.execute("CREATE INDEX IF NOT EXISTS idx_analysis_results_created ON analysis_results(created_at)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_analysis_results_series_model ON analysis_results(series, model)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_audit_logs_target ON audit_logs(target_type, target_id)")
-        cur.execute("CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active) WHERE is_active = FALSE")
-    init_default_data()
+                            init_default_data()
 
 
 def init_default_data():
