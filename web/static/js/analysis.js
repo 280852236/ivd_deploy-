@@ -1,7 +1,7 @@
 
 let CSRF_TOKEN = '';
 fetch('/api/csrf-token').then(r=>r.json()).then(d=>{CSRF_TOKEN=d.csrf_token;}).catch(()=>{});
-const ANALYSIS_ID = 'window.ANALYSIS_ID';
+const ANALYSIS_ID = window.ANALYSIS_ID;
 let _embeddedData = null;
 try { _embeddedData = window.EMBEDDED_DATA; } catch(e) {}
 const _fileCacheMap = new Map();
