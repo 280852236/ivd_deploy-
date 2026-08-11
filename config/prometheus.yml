@@ -20,10 +20,6 @@ scrape_configs:
       - targets: ['web:8081']
     metrics_path: '/metrics'
 
-  - job_name: 'go-parser'
-    static_configs:
-      - targets: ['go-parser:8082']
-    metrics_path: '/metrics'
 
   - job_name: 'node-exporter'
     static_configs:
