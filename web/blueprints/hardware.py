@@ -80,6 +80,7 @@ def add_hardware_failure():
                     img_data = file.read()
                     cur.execute(f'INSERT INTO {img_tbl} (failure_id, image_data) VALUES (%s, %s)', (failure_id, img_data))
             conn.commit()
+        shared.audit_log('add_hardware_failure', target_type='hardware_failure', target_id=failure_id, detail=f'添加 {model} 硬件故障#{failure_id} {phenomenon}')
         return jsonify({'success': True, 'id': failure_id})
     except Exception as e:
         logger.exception('添加硬件故障失败')
@@ -111,6 +112,7 @@ def update_hardware_failure(model, failure_id):
                     img_data = file.read()
                     cur.execute(f'INSERT INTO {img_tbl} (failure_id, image_data) VALUES (%s, %s)', (failure_id, img_data))
             conn.commit()
+        shared.audit_log('update_hardware_failure', target_type='hardware_failure', target_id=failure_id, detail=f'更新 {model} 硬件故障#{failure_id}')
         return jsonify({'success': True})
     except Exception as e:
         logger.exception('更新硬件故障失败')
@@ -170,6 +172,7 @@ def delete_hardware_failure_image(model, failure_id, image_id):
         cur = conn.cursor()
         cur.execute(f'DELETE FROM {img_tbl} WHERE id = %s AND failure_id = %s', (image_id, failure_id))
         conn.commit()
+    shared.audit_log('delete_hardware_failure_image', target_type='hardware_failure_image', target_id=image_id, detail=f'删除 {model} 故障#{failure_id} 图片#{image_id}')
     return jsonify({'success': True})
 
 
@@ -335,6 +338,7 @@ def add_pcba_compat():
             cur.execute(f'INSERT INTO {tbl} ({cols}) VALUES ({placeholders}) RETURNING id', [vals[f] for f in _PCBA_FIELDS])
             new_id = cur.fetchone()['id']
             conn.commit()
+        shared.audit_log('add_pcba_compat', target_type='pcba_compat', target_id=new_id, detail=f'添加 {model} PCBA兼容记录#{new_id} {pcba_code}')
         return jsonify({'success': True, 'id': new_id})
     except Exception as e:
         if 'unique' in str(e).lower() or 'duplicate' in str(e).lower():
@@ -359,6 +363,7 @@ def update_pcba_compat(model, row_id):
             set_clause = ', '.join(f'{f}=%s' for f in _PCBA_FIELDS) + ', updated_at=NOW()'
             cur.execute(f'UPDATE {tbl} SET {set_clause} WHERE id=%s', [vals[f] for f in _PCBA_FIELDS] + [row_id])
             conn.commit()
+        shared.audit_log('update_pcba_compat', target_type='pcba_compat', target_id=row_id, detail=f'更新 {model} PCBA兼容记录#{row_id}')
         return jsonify({'success': True})
     except Exception as e:
         logger.exception('更新PCBA兼容记录失败')
@@ -377,6 +382,7 @@ def delete_pcba_compat(model, row_id):
         cur = conn.cursor()
         cur.execute(f'DELETE FROM {tbl} WHERE id = %s', (row_id,))
         conn.commit()
+    shared.audit_log('delete_pcba_compat', target_type='pcba_compat', target_id=row_id, detail=f'删除 {model} PCBA兼容记录#{row_id}')
     return jsonify({'success': True})
 
 
@@ -404,6 +410,7 @@ def add_bootloader_compat():
             cur.execute(f'INSERT INTO {tbl} ({cols}) VALUES ({placeholders}) RETURNING id', [vals[f] for f in _BOOTLOADER_FIELDS])
             new_id = cur.fetchone()['id']
             conn.commit()
+        shared.audit_log('add_bootloader_compat', target_type='bootloader_compat', target_id=new_id, detail=f'添加 {model} 底层兼容记录#{new_id} {board_mnemonic}')
         return jsonify({'success': True, 'id': new_id})
     except Exception as e:
         if 'unique' in str(e).lower() or 'duplicate' in str(e).lower():
@@ -428,6 +435,7 @@ def update_bootloader_compat(model, row_id):
             set_clause = ', '.join(f'{f}=%s' for f in _BOOTLOADER_FIELDS) + ', updated_at=NOW()'
             cur.execute(f'UPDATE {tbl} SET {set_clause} WHERE id=%s', [vals[f] for f in _BOOTLOADER_FIELDS] + [row_id])
             conn.commit()
+        shared.audit_log('update_bootloader_compat', target_type='bootloader_compat', target_id=row_id, detail=f'更新 {model} 底层兼容记录#{row_id}')
         return jsonify({'success': True})
     except Exception as e:
         logger.exception('更新底层兼容记录失败')
@@ -446,6 +454,7 @@ def delete_bootloader_compat(model, row_id):
         cur = conn.cursor()
         cur.execute(f'DELETE FROM {tbl} WHERE id = %s', (row_id,))
         conn.commit()
+    shared.audit_log('delete_bootloader_compat', target_type='bootloader_compat', target_id=row_id, detail=f'删除 {model} 底层兼容记录#{row_id}')
     return jsonify({'success': True})
 
 
@@ -492,6 +501,7 @@ def import_pcba_compat():
         except Exception as e:
             errors.append('批量插入失败')
             skipped += len(batch_data)
+    shared.audit_log('import_pcba_compat', target_type='pcba_compat', detail=f'导入 {model} PCBA兼容表 added={added} skipped={skipped}')
     return jsonify({'success': True, 'added': added, 'skipped': skipped, 'errors': errors[:10]})
 
 
@@ -538,6 +548,7 @@ def import_bootloader_compat():
         except Exception as e:
             errors.append('批量插入失败')
             skipped += len(batch_data)
+    shared.audit_log('import_bootloader_compat', target_type='bootloader_compat', detail=f'导入 {model} 底层兼容表 added={added} skipped={skipped}')
     return jsonify({'success': True, 'added': added, 'skipped': skipped, 'errors': errors[:10]})
 
 

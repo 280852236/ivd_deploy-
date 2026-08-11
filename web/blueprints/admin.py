@@ -169,6 +169,7 @@ def add_rule_api():
         conn.commit()
         clear_rules_cache(series, model)
         logger.info(f"添加规则 ID:{rule_id} - {series}/{model}")
+        shared.audit_log('add_rule', target_type='rule', target_id=rule_id, detail=f'添加规则#{rule_id} {series}/{model} keywords={keywords}')
         return jsonify({'success': True, 'id': rule_id})
 
 
@@ -199,6 +200,7 @@ def update_rule_api(rule_id):
         else:
             clear_rules_cache()
         logger.info(f"更新规则 ID:{rule_id}")
+        shared.audit_log('update_rule', target_type='rule', target_id=rule_id, detail=f'更新规则#{rule_id}')
         return jsonify({'success': True})
 
 
@@ -274,6 +276,7 @@ def clear_motor_status():
             return jsonify({'error': f'型号 {model} 不存在'}), 404
         cur.execute(f'DELETE FROM {table_name}')
         conn.commit()
+        shared.audit_log('clear_motor_status', target_type='motor_status', detail=f'清空 {model} 电机状态数据')
         return jsonify({'success': True, 'message': f'已清空 {model} 的所有数据'})
 
 

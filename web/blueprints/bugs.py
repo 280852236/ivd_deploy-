@@ -84,6 +84,7 @@ def add_bug():
         for i, (img_data, img_mime) in enumerate(images):
             cur.execute(f'INSERT INTO {img_tbl} (bug_id, image_data, image_mime, sort_order) VALUES (%s, %s, %s, %s)', (bug_id, img_data, img_mime, i))
         conn.commit()
+    shared.audit_log('add_bug', target_type='bug', target_id=bug_id, detail=f'添加 {model} Bug#{bug_id} {title}')
     return jsonify({'id': bug_id, 'message': '添加成功', 'image_count': len(images)})
 
 
@@ -126,6 +127,7 @@ def update_bug(model, bug_id):
             for j, (img_data, img_mime) in enumerate(images):
                 cur.execute(f'INSERT INTO {img_tbl} (bug_id, image_data, image_mime, sort_order) VALUES (%s, %s, %s, %s)', (bug_id, img_data, img_mime, max_order + 1 + j))
         conn.commit()
+    shared.audit_log('update_bug', target_type='bug', target_id=bug_id, detail=f'更新 {model} Bug#{bug_id}')
     return jsonify({'message': '更新成功', 'added_images': len(images)})
 
 
@@ -182,6 +184,7 @@ def delete_bug_image(model, bug_id, image_id):
         cur.execute(f'DELETE FROM {img_tbl} WHERE bug_id=%s AND id=%s', (bug_id, image_id))
         if cur.rowcount == 0:
             return jsonify({'error': '图片不存在'}), 404
+    shared.audit_log('delete_bug_image', target_type='bug_image', target_id=image_id, detail=f'删除 {model} Bug#{bug_id} 图片#{image_id}')
     return jsonify({'success': True, 'message': '图片已删除'})
 
 
@@ -193,6 +196,7 @@ def delete_all_bug_images(model, bug_id):
     with shared.db_connection() as conn:
         cur = conn.cursor()
         cur.execute(f'DELETE FROM {img_tbl} WHERE bug_id=%s', (bug_id,))
+    shared.audit_log('delete_all_bug_images', target_type='bug_image', target_id=bug_id, detail=f'删除 {model} Bug#{bug_id} 所有图片')
     return jsonify({'success': True, 'message': '所有图片已删除'})
 
 

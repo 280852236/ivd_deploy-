@@ -13,6 +13,7 @@
     <!-- 新增 Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/static/css/analysis.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.5.1/html2pdf.bundle.min.js"></script>
 
 </head>
 <body>
@@ -42,6 +43,7 @@
                 <div id="quickUploadBar" style="width:0%;height:100%;background:#38bdf8;border-radius:2px;transition:width 0.3s;"></div>
             </div>
             <a href="/"><i class="fas fa-arrow-left"></i> 返回上传</a>
+            <button onclick="exportPDF()" style="padding:4px 12px;background:linear-gradient(135deg, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.1) 100%);border-radius:16px;cursor:pointer;font-size:0.92rem;display:flex;align-items:center;gap:6px;border:1px solid rgba(255,255,255,0.2);color:white;"><i class="fas fa-file-pdf"></i> 导出PDF</button>
         </div>
     </div>
     <div class="main">
@@ -245,5 +247,87 @@ window.ANALYSIS_ID = {{ analysis_id }};
 window.EMBEDDED_DATA = {{ embedded_data | safe }};
 </script>
 <script src="/static/js/analysis.js"></script>
+<script>
+function exportPDF() {
+    const btn = event.target.closest('button');
+    const originalHTML = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 生成中...';
+    btn.disabled = true;
+
+    const data = window.EMBEDDED_DATA || {};
+    const now = new Date();
+    const ts = now.toLocaleString('zh-CN');
+
+    const container = document.createElement('div');
+    container.style.cssText = 'padding:20px;font-family:system-ui,sans-serif;color:#1e293b;';
+
+    const header = document.createElement('div');
+    header.style.cssText = 'text-align:center;margin-bottom:20px;border-bottom:2px solid #2563eb;padding-bottom:10px;';
+    header.innerHTML = `
+        <h1 style="color:#1e40af;margin:0 0 8px;">IVD 智能分析诊断报告</h1>
+        <div style="font-size:0.9rem;color:#64748b;">
+            系列: <b>${data.series || '-'}</b> &nbsp;|&nbsp;
+            型号: <b>${data.model || '-'}</b> &nbsp;|&nbsp;
+            文件: <b>${(data.file_name || '-').substring(0, 50)}</b><br>
+            分析时间: <b>${data.analyzed_at || ts}</b> &nbsp;|&nbsp;
+            导出时间: <b>${ts}</b>
+        </div>
+    `;
+    container.appendChild(header);
+
+    const stats = document.createElement('div');
+    stats.style.cssText = 'display:flex;gap:16px;justify-content:center;margin-bottom:20px;';
+    const s = data.summary || {};
+    stats.innerHTML = `
+        <div style="background:#dbeafe;padding:8px 16px;border-radius:8px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#1e40af;">${data.total_dates || 0}</div><div style="font-size:0.75rem;color:#64748b;">日期数</div></div>
+        <div style="background:#dbeafe;padding:8px 16px;border-radius:8px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#1e40af;">${data.total_files || 0}</div><div style="font-size:0.75rem;color:#64748b;">文件数</div></div>
+        <div style="background:#fef3c7;padding:8px 16px;border-radius:8px;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#92400e;">${s.fault_count || s.matched_count || 0}</div><div style="font-size:0.75rem;color:#64748b;">匹配数</div></div>
+    `;
+    container.appendChild(stats);
+
+    const rightContent = document.getElementById('rightContent');
+    const rightBody = document.getElementById('rightBody');
+    if (rightContent && rightContent.style.display !== 'none' && rightBody) {
+        const contentClone = document.createElement('div');
+        contentClone.innerHTML = `
+            <h2 style="color:#1e40af;border-left:4px solid #2563eb;padding-left:8px;margin-bottom:12px;">文件详情: ${document.getElementById('fileTitle')?.textContent || '-'}</h2>
+            <div style="font-size:0.85rem;color:#64748b;margin-bottom:10px;">${document.getElementById('fileMeta')?.textContent || ''}</div>
+        `;
+        const bodyClone = rightBody.cloneNode(true);
+        bodyClone.style.cssText = 'font-size:0.8rem;line-height:1.6;max-height:none;overflow:visible;';
+        bodyClone.querySelectorAll('script').forEach(el => el.remove());
+        contentClone.appendChild(bodyClone);
+        container.appendChild(contentClone);
+    }
+
+    const leftTree = document.getElementById('leftTree');
+    if (leftTree) {
+        const treeClone = leftTree.cloneNode(true);
+        treeClone.style.cssText = 'font-size:0.75rem;max-height:400px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:10px;';
+        const treeSection = document.createElement('div');
+        treeSection.innerHTML = '<h2 style="color:#1e40af;border-left:4px solid #2563eb;padding-left:8px;margin:20px 0 12px;">文件列表</h2>';
+        treeSection.appendChild(treeClone);
+        container.appendChild(treeSection);
+    }
+
+    const filename = `IVD报告_${data.series || ''}_${data.model || ''}_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}.pdf`;
+
+    html2pdf().set({
+        margin: [10, 10, 10, 10],
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.95 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    }).from(container).save().then(() => {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+    }).catch(err => {
+        console.error('PDF导出失败:', err);
+        alert('PDF导出失败，请重试');
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+    });
+}
+</script>
 </body>
 </html>

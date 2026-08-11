@@ -46,6 +46,8 @@ def before_request():
             from services.cache import get_redis as _get_redis
             _r = _get_redis()
             _ip = request.headers.get('X-Real-IP') or (request.headers.get('X-Forwarded-For', request.remote_addr or '').split(',')[0].strip()) or 'unknown'
+            _is_admin = session.get('admin_logged_in', False)
+            _limit = 600 if _is_admin else 60
             _now = int(time.time())
             _window = _now - (_now % 60)
             _rk = f'ratelimit:{_ip}:{_window}'
@@ -53,7 +55,7 @@ def before_request():
             _pipe.incr(_rk)
             _pipe.expire(_rk, 120)
             _count = _pipe.execute()[0]
-            if _count > 60:
+            if _count > _limit:
                 return jsonify({'error': '请求过于频繁，请稍后再试'}), 429
         except Exception:
             pass

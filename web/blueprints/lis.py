@@ -679,6 +679,7 @@ def lis_upload_template():
             else:
                 cur.execute('INSERT INTO lis_protocol_templates (series, model, filename, content, pdf_data, pdf_filename) VALUES (%s, %s, %s, %s, %s, %s)', (series, model, filename, content, pdf_data, pdf_filename))
             conn.commit()
+        shared.audit_log('lis_upload_template', target_type='lis_template', detail=f'上传协议模板 {series}/{model} {filename}')
         return jsonify({'success': True, 'message': f'协议模板已保存: {series} {model}', 'extracted_content': content[:500]})
     except Exception as e:
         return jsonify({'error': '服务器内部错误'}), 500
@@ -711,6 +712,7 @@ def lis_delete_template(tid):
             if not cur.fetchone():
                 return jsonify({'error': '模板不存在'}), 404
             conn.commit()
+        shared.audit_log('lis_delete_template', target_type='lis_template', target_id=tid, detail=f'删除协议模板#{tid}')
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': '服务器内部错误'}), 500
@@ -729,6 +731,7 @@ def lis_update_template_content(tid):
             if not cur.fetchone():
                 return jsonify({'error': '模板不存在'}), 404
             conn.commit()
+        shared.audit_log('lis_update_template_content', target_type='lis_template', target_id=tid, detail=f'更新协议模板#{tid}内容')
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': '服务器内部错误'}), 500

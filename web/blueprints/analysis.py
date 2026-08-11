@@ -98,6 +98,7 @@ def analyze_file():
     task = analyze_files_task.delay(file_paths, series, model, analysis_type)
     analysis_id = task.id   # 使用 Celery 任务 ID 作为唯一标识
 
+    shared.audit_log('analyze_file', target_type='analysis', target_id=analysis_id, detail=f'提交分析 {series}/{model} 类型={analysis_type} 文件数={len(file_paths)}')
     # 立即返回，让前端轮询
     return jsonify({
         'status': 'accepted',
@@ -410,6 +411,7 @@ def import_pdf():
             return jsonify({'error': '所有条目已存在，无需导入'}), 400
 
         logger.info(f"PDF导入完成: {added_count} 条电机状态 - {series}/{model}")
+        shared.audit_log('import_pdf', target_type='motor_status', detail=f'PDF导入 {series}/{model} {added_count}条')
         return jsonify({
             'success': True,
             'message': f'成功导入 {added_count} 条电机状态数据',
