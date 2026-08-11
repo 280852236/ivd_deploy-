@@ -891,7 +891,7 @@ body { background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Seg
 </div>
 <div class="container">
     <div class="row">
-        <div class="col-lg-6">
+        <div class="col-lg-4">
             <div class="sim-card">
                 <h6 class="mb-3"><i class="bi bi-gear me-1"></i> 消息配置</h6>
                 <div class="mb-3">
@@ -940,7 +940,7 @@ body { background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Seg
                 </div>
             </div>
         </div>
-        <div class="col-lg-6">
+        <div class="col-lg-8">
             <div class="sim-card">
                 <h5 class="mb-3"><i class="bi bi-book me-1"></i> HL7 标准模板参考 <span style="font-size:0.8rem;color:#94a3b8;font-weight:normal;">（V系列真实数据）</span></h5>
                 <div class="mb-2">
