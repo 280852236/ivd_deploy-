@@ -966,7 +966,7 @@ body { background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Seg
                     <button class="btn btn-sm btn-outline-primary" id="tplBtnAck" onclick="showTemplate('ack')">ACK 确认</button>
                 </div>
                 <div id="tplFlow">
-                    <div class="msg-preview" style="color:#1e293b;font-size:0.75rem;line-height:1.8;">
+                    <div class="msg-preview" style="color:#1e293b;font-size:0.85rem;line-height:1.8;">
 <span style="color:#3b82f6;">━━━ 通信流程1: 查询 → 响应 → 确认 ━━━</span>
 
 <span style="color:#059669;">[设备→LIS] QRY^Q02 查询请求</span>
@@ -1005,7 +1005,7 @@ MSA|AA|<span style="color:#ef4444;font-weight:700;">511</span>|OK|||0|        <s
                     </div>
                 </div>
                 <div id="tplQry" style="display:none;">
-                    <div class="msg-preview" style="color:#1e293b;font-size:0.75rem;line-height:1.8;">
+                    <div class="msg-preview" style="color:#1e293b;font-size:0.85rem;line-height:1.8;">
 <span style="color:#059669;">[设备→LIS] QRY^Q02 查询请求</span>
 MSH|^~\\&|KEYLIGHTS|VENUS9000|001||20260804091647||QRY^Q02|<span style="color:#ef4444;font-weight:700;">488</span>|P|2.3.1||||1||utf-8|||
 <span style="color:#6366f1;">  MSH-3=KEYLIGHTS(发送应用) MSH-4=VENUS9000(发送机构)</span>
@@ -1039,7 +1039,7 @@ DSP|19|1|410|nRNP/Sm||<br>
                     </div>
                 </div>
                 <div id="tplOru" style="display:none;">
-                    <div class="msg-preview" style="color:#1e293b;font-size:0.75rem;line-height:1.8;">
+                    <div class="msg-preview" style="color:#1e293b;font-size:0.85rem;line-height:1.8;">
 <span style="color:#059669;">[设备→LIS] ORU^R01 结果上报</span>
 MSH|^~\\&|KEYLIGHTS|VENUS9000|001||20260804101120||ORU^R01|<span style="color:#ef4444;font-weight:700;">511</span>|P|2.3.1||||1||utf-8|||
 <span style="color:#6366f1;">  MSH-8=ORU^R01(结果上报) MSH-10=<span style="color:#ef4444;font-weight:700;">511</span>(控制ID) <span style="color:#ef4444;">⚠响应需一致</span></span>
@@ -1061,7 +1061,7 @@ OBI|1|5|20251222080000|251222|ANA Screen|||||
                     </div>
                 </div>
                 <div id="tplAck" style="display:none;">
-                    <div class="msg-preview" style="color:#1e293b;font-size:0.75rem;line-height:1.8;">
+                    <div class="msg-preview" style="color:#1e293b;font-size:0.85rem;line-height:1.8;">
 <span style="color:#059669;">[设备→LIS] ACK^Q03 查询确认</span>
 MSH|^~\\&|KEYLIGHTS|VENUS9000|001||20260804091647||ACK^Q03|<span style="color:#ef4444;font-weight:700;">488</span>|P|2.3.1||||1||utf-8|||
 <span style="color:#6366f1;">  MSH-8=ACK^Q03(查询确认) MSH-10=488(与QRY一致)</span>
