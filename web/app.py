@@ -101,7 +101,7 @@ app.register_blueprint(admin_bp)
 def not_found_error(e):
     if request.path.startswith('/api/'):
         return jsonify({'error': '资源不存在'}), 404
-    return redirect(url_for('index'))
+    return redirect(url_for('admin.index'))
 
 @app.errorhandler(500)
 def internal_error(e):
