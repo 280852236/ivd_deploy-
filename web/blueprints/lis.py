@@ -868,7 +868,7 @@ def lis_simulator_page():
 body { background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 .page-header { background: linear-gradient(135deg, #7c3aed, #a78bfa); color: white; padding: 24px 0; margin-bottom: 24px; }
 .sim-card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 20px; margin-bottom: 16px; }
-.msg-preview { background: #1e293b; color: #a5f3fc; border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-height: 600px; overflow-y: auto; }
+.msg-preview { background: #1e293b; color: #a5f3fc; border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-height: 800px; overflow-y: auto; }
 .resp-preview { background: #1e293b; color: #86efac; border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; }
 .form-label { font-weight: 600; font-size: 0.875rem; color: #475569; }
 .btn-send { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; border: none; border-radius: 8px; padding: 10px 24px; font-weight: 600; }
@@ -938,6 +938,18 @@ body { background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Seg
                         <div class="col-3"><input type="text" class="form-control form-control-sm" id="testRef" value="3.9-6.1" placeholder="参考范围"></div>
                     </div>
                 </div>
+            </div>
+            <div class="sim-card mt-3" style="background:#fef3c7;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08);padding:20px;">
+                <h6 class="mb-2"><i class="bi bi-lightbulb me-1"></i> 关键要点</h6>
+                <ul style="font-size:0.8rem;color:#92400e; padding-left:1.2rem;">
+                    <li><b>设备端</b>：KEYLIGHTS/VENUS9000，版本号用<b>点号</b>(2.3.1)，编码<b>utf-8</b></li>
+                    <li><b>LIS端</b>：KEYSMILE/SMART6500，版本号用<b>逗号</b>(2,3,1)，编码<b>ASCII</b></li>
+                    <li><b>查询流程</b>：QRY^Q02 → DSR^Q03 → ACK^Q03</li>
+                    <li><b>上报流程</b>：ORU^R01 → ACK^R01</li>
+                    <li><b>控制ID配对</b>：MSA-2必须与请求MSH-10一致</li>
+                    <li><b>DSP段</b>：序号1-18为患者信息，19+为检验项目</li>
+                    <li><b>OBI段</b>：试剂信息（批号/有效期），V系列特有</li>
+                </ul>
             </div>
         </div>
         <div class="col-lg-8">
@@ -1058,18 +1070,6 @@ MSH|^~\\&|KEYSMILE|SMART6500|0001||20260804101327||ACK^R01|1|P|2,3,1||||1||ASCII
 MSA|AA|<span style="color:#ef4444;font-weight:700;">511</span>|OK|||0|
 <span style="color:#64748b;">  MSA-1=AA(接受) MSA-2=<span style="color:#ef4444;font-weight:700;">511</span>(与ORU的MSH-10一致) <span style="color:#ef4444;">⚠配对验证</span></span>
                     </div>
-                </div>
-                <div class="mt-3 p-3" style="background:#fef3c7;border-radius:8px;font-size:0.85rem;">
-                    <b><i class="bi bi-lightbulb me-1"></i>关键要点：</b>
-                    <ul class="mb-0 mt-1">
-                        <li><b>设备端</b>：KEYLIGHTS/VENUS9000，版本号用<b>点号</b>(2.3.1)，编码<b>utf-8</b></li>
-                        <li><b>LIS端</b>：KEYSMILE/SMART6500，版本号用<b>逗号</b>(2,3,1)，编码<b>ASCII</b></li>
-                        <li><b>查询流程</b>：QRY^Q02 → DSR^Q03 → ACK^Q03（设备查→LIS答→设备确认）</li>
-                        <li><b>上报流程</b>：ORU^R01 → ACK^R01（设备报结果→LIS确认）</li>
-                        <li><b>控制ID配对</b>：MSA-2必须与请求MSH-10一致（如488配488，511配511）</li>
-                        <li><b>DSP段</b>：V系列用DSP段返回患者+项目信息，序号1-18为患者信息，19+为检验项目</li>
-                        <li><b>OBI段</b>：试剂信息（批号/有效期），V系列特有</li>
-                    </ul>
                 </div>
             </div>
         </div>
