@@ -868,7 +868,7 @@ def lis_simulator_page():
 body { background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
 .page-header { background: linear-gradient(135deg, #7c3aed, #a78bfa); color: white; padding: 24px 0; margin-bottom: 24px; }
 .sim-card { background: white; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); padding: 20px; margin-bottom: 16px; }
-.msg-preview { background: #1e293b; color: #a5f3fc; border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-height: 800px; overflow-y: auto; }
+.msg-preview { background: #f8fafc; color: #1e293b; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-height: 800px; overflow-y: auto; }
 .resp-preview { background: #1e293b; color: #86efac; border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; }
 .form-label { font-weight: 600; font-size: 0.875rem; color: #475569; }
 .btn-send { background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; border: none; border-radius: 8px; padding: 10px 24px; font-weight: 600; }
@@ -942,8 +942,8 @@ body { background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Seg
             <div class="sim-card mt-3" style="background:#fef3c7;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08);padding:20px;">
                 <h6 class="mb-2"><i class="bi bi-lightbulb me-1"></i> 关键要点</h6>
                 <ul style="font-size:0.8rem;color:#92400e; padding-left:1.2rem;">
-                    <li><b>设备端</b>：KEYLIGHTS/VENUS9000，版本号用<b>点号</b>(2.3.1)，编码<b>utf-8</b></li>
-                    <li><b>LIS端</b>：KEYSMILE/SMART6500，版本号用<b>逗号</b>(2,3,1)，编码<b>ASCII</b></li>
+                    <li><b>设备端</b>：发送应用/机构，V系列用<b>点号</b>(2.3.1)+<b>utf-8</b>，SMART用<b>逗号</b>(2,3,1)+<b>ASCII</b></li>
+                    <li><b>LIS端</b>：接收应用/机构，版本号和编码与设备端相反</li>
                     <li><b>查询流程</b>：QRY^Q02 → DSR^Q03 → ACK^Q03</li>
                     <li><b>上报流程</b>：ORU^R01 → ACK^R01</li>
                     <li><b>控制ID配对</b>：MSA-2必须与请求MSH-10一致</li>
@@ -956,119 +956,123 @@ body { background: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Seg
             <div class="sim-card">
                 <h5 class="mb-3"><i class="bi bi-book me-1"></i> HL7 标准模板参考 <span style="font-size:0.8rem;color:#94a3b8;font-weight:normal;">（V系列真实数据）</span></h5>
                 <div class="mb-2">
+                    <select class="form-select form-select-sm d-inline-block w-auto me-2" id="tplSeries" onchange="switchSeries()">
+                        <option value="venus">V系列 (VENUS)</option>
+                        <option value="smart">SMART系列</option>
+                    </select>
                     <button class="btn btn-sm btn-outline-primary active" id="tplBtnFlow" onclick="showTemplate('flow')">完整通信过程</button>
                     <button class="btn btn-sm btn-outline-primary" id="tplBtnQry" onclick="showTemplate('qry')">QRY^Q02 查询</button>
                     <button class="btn btn-sm btn-outline-primary" id="tplBtnOru" onclick="showTemplate('oru')">ORU^R01 结果上报</button>
                     <button class="btn btn-sm btn-outline-primary" id="tplBtnAck" onclick="showTemplate('ack')">ACK 确认</button>
                 </div>
                 <div id="tplFlow">
-                    <div class="msg-preview" style="color:#e2e8f0;font-size:0.75rem;line-height:1.8;">
-<span style="color:#38bdf8;">━━━ 通信流程1: 查询 → 响应 → 确认 ━━━</span>
+                    <div class="msg-preview" style="color:#1e293b;font-size:0.75rem;line-height:1.8;">
+<span style="color:#3b82f6;">━━━ 通信流程1: 查询 → 响应 → 确认 ━━━</span>
 
-<span style="color:#4ade80;">[设备→LIS] QRY^Q02 查询请求</span>
+<span style="color:#059669;">[设备→LIS] QRY^Q02 查询请求</span>
 MSH|^~\\&|KEYLIGHTS|VENUS9000|001||20260804091647||QRY^Q02|<span style="color:#ef4444;font-weight:700;">488</span>|P|2.3.1||||1||utf-8|||
 QRD|20260804091647||||||3|1230252993565|||||
 
-<span style="color:#f59e0b;">[LIS→设备] DSR^Q03 查询响应</span>
+<span style="color:#d97706;">[LIS→设备] DSR^Q03 查询响应</span>
 MSH|^~\\&|KEYSMILE|SMART6500|0001||20260804091854||DSR^Q03|<span style="color:#ef4444;font-weight:700;">488</span>|P|2,3,1||||||ASCII|||
-DSP|1||7967635|||        <span style="color:#64748b;">← 病员号</span>
-DSP|2||GONG RUN FANG|||  <span style="color:#64748b;">← 姓名</span>
-DSP|3||F|||              <span style="color:#64748b;">← 性别</span>
-DSP|4||78|||             <span style="color:#64748b;">← 年龄</span>
-DSP|9||1230252993565|||  <span style="color:#64748b;">← 样本号</span>
-DSP|10||Ser/PI|||        <span style="color:#64748b;">← 标本类型</span>
-DSP|19|1|410|nRNP/Sm||  <span style="color:#64748b;">← 检验项目1: 编号410 nRNP/Sm</span>
-DSP|20|2|399|Sm||       <span style="color:#64748b;">← 检验项目2: 编号399 Sm</span>
-DSP|21|3|401|Ro-52||    <span style="color:#64748b;">← 检验项目3: 编号401 Ro-52</span>
-<span style="color:#64748b;">... (共15个检验项目)</span>
+DSP|1||7967635|||        <span style="color:#6366f1;">← 病员号</span>
+DSP|2||GONG RUN FANG|||  <span style="color:#6366f1;">← 姓名</span>
+DSP|3||F|||              <span style="color:#6366f1;">← 性别</span>
+DSP|4||78|||             <span style="color:#6366f1;">← 年龄</span>
+DSP|9||1230252993565|||  <span style="color:#6366f1;">← 样本号</span>
+DSP|10||Ser/PI|||        <span style="color:#6366f1;">← 标本类型</span>
+DSP|19|1|410|nRNP/Sm||  <span style="color:#6366f1;">← 检验项目1: 编号410 nRNP/Sm</span>
+DSP|20|2|399|Sm||       <span style="color:#6366f1;">← 检验项目2: 编号399 Sm</span>
+DSP|21|3|401|Ro-52||    <span style="color:#6366f1;">← 检验项目3: 编号401 Ro-52</span>
+<span style="color:#6366f1;">... (共15个检验项目)</span>
 
-<span style="color:#4ade80;">[设备→LIS] ACK^Q03 确认</span>
+<span style="color:#059669;">[设备→LIS] ACK^Q03 确认</span>
 MSH|^~\\&|KEYLIGHTS|VENUS9000|001||20260804091647||ACK^Q03|<span style="color:#ef4444;font-weight:700;">488</span>|P|2.3.1||||1||utf-8|||
-MSA|AA|<span style="color:#ef4444;font-weight:700;">1</span>|OK|||0|        <span style="color:#64748b;">← AA=接受 控制ID=1</span>
+MSA|AA|<span style="color:#ef4444;font-weight:700;">1</span>|OK|||0|        <span style="color:#6366f1;">← AA=接受 控制ID=1</span>
 
-<span style="color:#38bdf8;">━━━ 通信流程2: 结果上报 → 确认 ━━━</span>
+<span style="color:#3b82f6;">━━━ 通信流程2: 结果上报 → 确认 ━━━</span>
 
-<span style="color:#4ade80;">[设备→LIS] ORU^R01 结果上报</span>
+<span style="color:#059669;">[设备→LIS] ORU^R01 结果上报</span>
 MSH|^~\\&|KEYLIGHTS|VENUS9000|001||20260804101120||ORU^R01|<span style="color:#ef4444;font-weight:700;">511</span>|P|2.3.1||||1||utf-8|||
 PID|1||||7967635|GONG RUN FANG|78|F|||||||||||||||||||||||
 OBR|1|1230252993565|||KEYLIGHTS^VENUS9000|||20260804101120||||||||Ser/PI|||||||||||||||||||||||||||||||||
 OBX|1||499|ANA Screen|1686580|RU/mL|0|20||+||A|101.12|20260804101120||||抗核抗体|||||||||
 OBI|1|5|20251222080000|251222|ANA Screen|||||
 
-<span style="color:#f59e0b;">[LIS→设备] ACK^R01 确认</span>
+<span style="color:#d97706;">[LIS→设备] ACK^R01 确认</span>
 MSH|^~\\&|KEYSMILE|SMART6500|0001||20260804101327||ACK^R01|1|P|2,3,1||||1||ASCII|||
-MSA|AA|<span style="color:#ef4444;font-weight:700;">511</span>|OK|||0|        <span style="color:#64748b;">← AA=接受 控制ID=511(与ORU的MSH-10一致)</span>
+MSA|AA|<span style="color:#ef4444;font-weight:700;">511</span>|OK|||0|        <span style="color:#6366f1;">← AA=接受 控制ID=511(与ORU的MSH-10一致)</span>
                     </div>
                 </div>
                 <div id="tplQry" style="display:none;">
-                    <div class="msg-preview" style="color:#e2e8f0;font-size:0.75rem;line-height:1.8;">
-<span style="color:#4ade80;">[设备→LIS] QRY^Q02 查询请求</span>
+                    <div class="msg-preview" style="color:#1e293b;font-size:0.75rem;line-height:1.8;">
+<span style="color:#059669;">[设备→LIS] QRY^Q02 查询请求</span>
 MSH|^~\\&|KEYLIGHTS|VENUS9000|001||20260804091647||QRY^Q02|<span style="color:#ef4444;font-weight:700;">488</span>|P|2.3.1||||1||utf-8|||
-<span style="color:#64748b;">  MSH-3=KEYLIGHTS(发送应用) MSH-4=VENUS9000(发送机构)</span>
-<span style="color:#64748b;">  MSH-5=001(接收应用) MSH-7=20260804091647(时间)</span>
-<span style="color:#64748b;">  MSH-8=QRY^Q02(消息类型) MSH-10=<span style="color:#ef4444;font-weight:700;">488</span>(控制ID) <span style="color:#ef4444;">⚠响应需一致</span></span>
-<span style="color:#64748b;">  MSH-11=P(生产模式) MSH-12=2.3.1(版本号)</span>
-<span style="color:#64748b;">  MSH-16=1(设备标识) MSH-18=utf-8(编码)</span>
+<span style="color:#6366f1;">  MSH-3=KEYLIGHTS(发送应用) MSH-4=VENUS9000(发送机构)</span>
+<span style="color:#6366f1;">  MSH-5=001(接收应用) MSH-7=20260804091647(时间)</span>
+<span style="color:#6366f1;">  MSH-8=QRY^Q02(消息类型) MSH-10=<span style="color:#ef4444;font-weight:700;">488</span>(控制ID) <span style="color:#ef4444;">⚠响应需一致</span></span>
+<span style="color:#6366f1;">  MSH-11=P(生产模式) MSH-12=2.3.1(版本号)</span>
+<span style="color:#6366f1;">  MSH-16=1(设备标识) MSH-18=utf-8(编码)</span>
 QRD|20260804091647||||||3|1230252993565|||||
-<span style="color:#64748b;">  QRD-1=20260804091647(查询时间)</span>
-<span style="color:#64748b;">  QRD-7=3(查询结果数量)</span>
-<span style="color:#64748b;">  QRD-8=1230252993565(样本条码)</span>
+<span style="color:#6366f1;">  QRD-1=20260804091647(查询时间)</span>
+<span style="color:#6366f1;">  QRD-7=3(查询结果数量)</span>
+<span style="color:#6366f1;">  QRD-8=1230252993565(样本条码)</span>
                     </div>
-                    <div class="mt-2 p-2" style="background:#1e293b;border-radius:6px;font-size:0.75rem;color:#94a3b8;">
-<span style="color:#f59e0b;">[LIS→设备] DSR^Q03 查询响应</span><br>
+                    <div class="mt-2 p-2" style="background:#f1f5f9;border-radius:6px;font-size:0.75rem;color:#475569;border:1px solid #e2e8f0;">
+<span style="color:#d97706;">[LIS→设备] DSR^Q03 查询响应</span><br>
 MSH|^~\\&|KEYSMILE|SMART6500|0001||20260804091854||DSR^Q03|<span style="color:#ef4444;font-weight:700;">488</span>|P|2,3,1||||||ASCII|||<br>
-<span style="color:#64748b;">  MSH-3=KEYSMILE(LIS应用名) MSH-4=SMART6500(LIS机构)</span><br>
-<span style="color:#64748b;">  MSH-8=DSR^Q03(响应类型) MSH-10=<span style="color:#ef4444;font-weight:700;">488</span>(与请求一致) <span style="color:#ef4444;">⚠配对验证</span></span><br>
-<span style="color:#64748b;">  MSH-12=2,3,1(逗号分隔版本) MSH-18=ASCII(编码)</span><br>
+<span style="color:#6366f1;">  MSH-3=KEYSMILE(LIS应用名) MSH-4=SMART6500(LIS机构)</span><br>
+<span style="color:#6366f1;">  MSH-8=DSR^Q03(响应类型) MSH-10=<span style="color:#ef4444;font-weight:700;">488</span>(与请求一致) <span style="color:#ef4444;">⚠配对验证</span></span><br>
+<span style="color:#6366f1;">  MSH-12=2,3,1(逗号分隔版本) MSH-18=ASCII(编码)</span><br>
 DSP|1||7967635|||<br>
-<span style="color:#64748b;">  DSP-1=1(序号) DSP-3=7967635(病员号)</span><br>
+<span style="color:#6366f1;">  DSP-1=1(序号) DSP-3=7967635(病员号)</span><br>
 DSP|2||GONG RUN FANG|||<br>
-<span style="color:#64748b;">  DSP-3=GONG RUN FANG(姓名)</span><br>
+<span style="color:#6366f1;">  DSP-3=GONG RUN FANG(姓名)</span><br>
 DSP|3||F|||<br>
-<span style="color:#64748b;">  DSP-3=F(性别:女)</span><br>
+<span style="color:#6366f1;">  DSP-3=F(性别:女)</span><br>
 DSP|9||1230252993565|||<br>
-<span style="color:#64748b;">  DSP-3=1230252993565(样本号)</span><br>
+<span style="color:#6366f1;">  DSP-3=1230252993565(样本号)</span><br>
 DSP|10||Ser/PI|||<br>
-<span style="color:#64748b;">  DSP-3=Ser/PI(标本类型:血清/浆)</span><br>
+<span style="color:#6366f1;">  DSP-3=Ser/PI(标本类型:血清/浆)</span><br>
 DSP|19|1|410|nRNP/Sm||<br>
-<span style="color:#64748b;">  DSP-1=19(序号) DSP-2=1(项目序号) DSP-3=410(项目编号) DSP-4=nRNP/Sm(项目名称)</span>
+<span style="color:#6366f1;">  DSP-1=19(序号) DSP-2=1(项目序号) DSP-3=410(项目编号) DSP-4=nRNP/Sm(项目名称)</span>
                     </div>
                 </div>
                 <div id="tplOru" style="display:none;">
-                    <div class="msg-preview" style="color:#e2e8f0;font-size:0.75rem;line-height:1.8;">
-<span style="color:#4ade80;">[设备→LIS] ORU^R01 结果上报</span>
+                    <div class="msg-preview" style="color:#1e293b;font-size:0.75rem;line-height:1.8;">
+<span style="color:#059669;">[设备→LIS] ORU^R01 结果上报</span>
 MSH|^~\\&|KEYLIGHTS|VENUS9000|001||20260804101120||ORU^R01|<span style="color:#ef4444;font-weight:700;">511</span>|P|2.3.1||||1||utf-8|||
-<span style="color:#64748b;">  MSH-8=ORU^R01(结果上报) MSH-10=<span style="color:#ef4444;font-weight:700;">511</span>(控制ID) <span style="color:#ef4444;">⚠响应需一致</span></span>
+<span style="color:#6366f1;">  MSH-8=ORU^R01(结果上报) MSH-10=<span style="color:#ef4444;font-weight:700;">511</span>(控制ID) <span style="color:#ef4444;">⚠响应需一致</span></span>
 PID|1||||7967635|GONG RUN FANG|78|F|||||||||||||||||||||||
-<span style="color:#64748b;">  PID-5=7967635(病员号) PID-6=GONG RUN FANG(姓名)</span>
-<span style="color:#64748b;">  PID-8=78(年龄) PID-9=F(性别)</span>
+<span style="color:#6366f1;">  PID-5=7967635(病员号) PID-6=GONG RUN FANG(姓名)</span>
+<span style="color:#6366f1;">  PID-8=78(年龄) PID-9=F(性别)</span>
 OBR|1|1230252993565|||KEYLIGHTS^VENUS9000|||20260804101120||||||||Ser/PI|||||||||||||||||||||||||||||||||
-<span style="color:#64748b;">  OBR-3=1230252993565(样本号) OBR-5=KEYLIGHTS^VENUS9000(设备信息)</span>
-<span style="color:#64748b;">  OBR-8=20260804101120(检测时间) OBR-16=Ser/PI(标本类型)</span>
+<span style="color:#6366f1;">  OBR-3=1230252993565(样本号) OBR-5=KEYLIGHTS^VENUS9000(设备信息)</span>
+<span style="color:#6366f1;">  OBR-8=20260804101120(检测时间) OBR-16=Ser/PI(标本类型)</span>
 OBX|1||499|ANA Screen|1686580|RU/mL|0|20||+||A|101.12|20260804101120||||抗核抗体|||||||||
-<span style="color:#64748b;">  OBX-3=499(项目编号) OBX-4=ANA Screen(项目名称)</span>
-<span style="color:#64748b;">  OBX-5=1686580(检测值) OBX-6=RU/mL(单位)</span>
-<span style="color:#64748b;">  OBX-7=0(参考下限) OBX-8=20(参考上限)</span>
-<span style="color:#64748b;">  OBX-12=A(异常) OBX-14=101.12(仪器原始值)</span>
-<span style="color:#64748b;">  OBX-20=抗核抗体(中文名称)</span>
+<span style="color:#6366f1;">  OBX-3=499(项目编号) OBX-4=ANA Screen(项目名称)</span>
+<span style="color:#6366f1;">  OBX-5=1686580(检测值) OBX-6=RU/mL(单位)</span>
+<span style="color:#6366f1;">  OBX-7=0(参考下限) OBX-8=20(参考上限)</span>
+<span style="color:#6366f1;">  OBX-12=A(异常) OBX-14=101.12(仪器原始值)</span>
+<span style="color:#6366f1;">  OBX-20=抗核抗体(中文名称)</span>
 OBI|1|5|20251222080000|251222|ANA Screen|||||
-<span style="color:#64748b;">  OBI-3=20251222080000(试剂批号有效期) OBI-4=251222(试剂批号)</span>
-<span style="color:#64748b;">  OBI-5=ANA Screen(试剂名称)</span>
+<span style="color:#6366f1;">  OBI-3=20251222080000(试剂批号有效期) OBI-4=251222(试剂批号)</span>
+<span style="color:#6366f1;">  OBI-5=ANA Screen(试剂名称)</span>
                     </div>
                 </div>
                 <div id="tplAck" style="display:none;">
-                    <div class="msg-preview" style="color:#e2e8f0;font-size:0.75rem;line-height:1.8;">
-<span style="color:#4ade80;">[设备→LIS] ACK^Q03 查询确认</span>
+                    <div class="msg-preview" style="color:#1e293b;font-size:0.75rem;line-height:1.8;">
+<span style="color:#059669;">[设备→LIS] ACK^Q03 查询确认</span>
 MSH|^~\\&|KEYLIGHTS|VENUS9000|001||20260804091647||ACK^Q03|<span style="color:#ef4444;font-weight:700;">488</span>|P|2.3.1||||1||utf-8|||
-<span style="color:#64748b;">  MSH-8=ACK^Q03(查询确认) MSH-10=488(与QRY一致)</span>
+<span style="color:#6366f1;">  MSH-8=ACK^Q03(查询确认) MSH-10=488(与QRY一致)</span>
 MSA|AA|<span style="color:#ef4444;font-weight:700;">1</span>|OK|||0|
-<span style="color:#64748b;">  MSA-1=AA(接受) MSA-2=<span style="color:#ef4444;font-weight:700;">1</span>(确认ID) MSA-3=OK(状态信息) <span style="color:#ef4444;">⚠需与QRY的MSH-10一致</span></span>
+<span style="color:#6366f1;">  MSA-1=AA(接受) MSA-2=<span style="color:#ef4444;font-weight:700;">1</span>(确认ID) MSA-3=OK(状态信息) <span style="color:#ef4444;">⚠需与QRY的MSH-10一致</span></span>
 
-<span style="color:#f59e0b;">[LIS→设备] ACK^R01 结果确认</span>
+<span style="color:#d97706;">[LIS→设备] ACK^R01 结果确认</span>
 MSH|^~\\&|KEYSMILE|SMART6500|0001||20260804101327||ACK^R01|1|P|2,3,1||||1||ASCII|||
-<span style="color:#64748b;">  MSH-8=ACK^R01(结果确认) MSH-10=1(LIS控制ID)</span>
+<span style="color:#6366f1;">  MSH-8=ACK^R01(结果确认) MSH-10=1(LIS控制ID)</span>
 MSA|AA|<span style="color:#ef4444;font-weight:700;">511</span>|OK|||0|
-<span style="color:#64748b;">  MSA-1=AA(接受) MSA-2=<span style="color:#ef4444;font-weight:700;">511</span>(与ORU的MSH-10一致) <span style="color:#ef4444;">⚠配对验证</span></span>
+<span style="color:#6366f1;">  MSA-1=AA(接受) MSA-2=<span style="color:#ef4444;font-weight:700;">511</span>(与ORU的MSH-10一致) <span style="color:#ef4444;">⚠配对验证</span></span>
                     </div>
                 </div>
             </div>
@@ -1083,6 +1087,80 @@ function showTemplate(type) {
         const btn = document.getElementById('tplBtn' + t.charAt(0).toUpperCase() + t.slice(1));
         if (btn) btn.classList.toggle('active', t === type);
     });
+}
+const SMART_DATA = {
+    flow: `<span style="color:#3b82f6;">━━━ 通信流程1: 查询 → 响应 → 确认 ━━━</span>
+
+<span style="color:#059669;">[设备→LIS] QRY^Q02 查询请求</span>
+MSH|^~\\&|IVD|SMART9000|LIS|HIS|20260804091647||QRY^Q02|<span style="color:#ef4444;font-weight:700;">488</span>|P|2,3,1||||1||ASCII|||
+QRD|20260804091647||||||3|1230252993565|||||
+
+<span style="color:#d97706;">[LIS→设备] DSR^Q03 查询响应</span>
+MSH|^~\\&|LIS|HIS|IVD|SMART9000|20260804091854||DSR^Q03|<span style="color:#ef4444;font-weight:700;">488</span>|P|2,3,1||||||ASCII|||
+DSP|1||7967635|||        <span style="color:#6366f1;">← 病员号</span>
+DSP|2||ZHANG SAN|||      <span style="color:#6366f1;">← 姓名</span>
+DSP|3||M|||              <span style="color:#6366f1;">← 性别</span>
+DSP|9||1230252993565|||  <span style="color:#6366f1;">← 样本号</span>
+DSP|10||Ser|||           <span style="color:#6366f1;">← 标本类型</span>
+DSP|19|1|401|GLU||       <span style="color:#6366f1;">← 项目1: GLU</span>
+
+<span style="color:#059669;">[设备→LIS] ACK^Q03 确认</span>
+MSH|^~\\&|IVD|SMART9000|LIS|HIS|20260804091647||ACK^Q03|<span style="color:#ef4444;font-weight:700;">488</span>|P|2,3,1||||1||ASCII|||
+MSA|AA|<span style="color:#ef4444;font-weight:700;">1</span>|OK|||0|        <span style="color:#6366f1;">← AA=接受</span>
+
+<span style="color:#3b82f6;">━━━ 通信流程2: 结果上报 → 确认 ━━━</span>
+
+<span style="color:#059669;">[设备→LIS] ORU^R01 结果上报</span>
+MSH|^~\\&|IVD|SMART9000|LIS|HIS|20260804101120||ORU^R01|<span style="color:#ef4444;font-weight:700;">511</span>|P|2,3,1||||1||ASCII|||
+PID|1||||7967635|ZHANG SAN|56|M|||||||||||||||||||||||
+OBR|1|1230252993565|||IVD^SMART9000|||20260804101120||||||||Ser|||||||||||||||||||||||||||||||||
+OBX|1||401|GLU|5.2|mmol/L|3.9|6.1|||F||N|20260804101120||||血糖|||||||||
+
+<span style="color:#d97706;">[LIS→设备] ACK^R01 确认</span>
+MSH|^~\\&|LIS|HIS|IVD|SMART9000|20260804101327||ACK^R01|<span style="color:#ef4444;font-weight:700;">1</span>|P|2,3,1||||1||ASCII|||
+MSA|AA|<span style="color:#ef4444;font-weight:700;">511</span>|OK|||0|        <span style="color:#6366f1;">← 与ORU的MSH-10一致</span>`,
+    qry: `<span style="color:#059669;">[设备→LIS] QRY^Q02 查询请求</span>
+MSH|^~\\&|IVD|SMART9000|LIS|HIS|20260804091647||QRY^Q02|<span style="color:#ef4444;font-weight:700;">488</span>|P|2,3,1||||1||ASCII|||
+<span style="color:#6366f1;">  MSH-3=IVD(发送应用) MSH-4=SMART9000(发送机构)</span>
+<span style="color:#6366f1;">  MSH-8=QRY^Q02(消息类型) MSH-10=<span style="color:#ef4444;font-weight:700;">488</span>(控制ID)</span>
+<span style="color:#6366f1;">  MSH-12=2,3,1(逗号分隔版本) MSH-18=ASCII(编码)</span>
+QRD|20260804091647||||||3|1230252993565|||||
+<span style="color:#6366f1;">  QRD-8=1230252993565(样本条码)</span>`,
+    oru: `<span style="color:#059669;">[设备→LIS] ORU^R01 结果上报</span>
+MSH|^~\\&|IVD|SMART9000|LIS|HIS|20260804101120||ORU^R01|<span style="color:#ef4444;font-weight:700;">511</span>|P|2,3,1||||1||ASCII|||
+<span style="color:#6366f1;">  MSH-8=ORU^R01(结果上报) MSH-10=<span style="color:#ef4444;font-weight:700;">511</span>(控制ID)</span>
+PID|1||||7967635|ZHANG SAN|56|M|||||||||||||||||||||||
+<span style="color:#6366f1;">  PID-5=7967635(病员号) PID-6=ZHANG SAN(姓名) PID-8=56(年龄) PID-9=M(性别)</span>
+OBR|1|1230252993565|||IVD^SMART9000|||20260804101120||||||||Ser|||||||||||||||||||||||||||||||||
+<span style="color:#6366f1;">  OBR-3=1230252993565(样本号) OBR-16=Ser(标本类型)</span>
+OBX|1||401|GLU|5.2|mmol/L|3.9|6.1|||F||N|20260804101120||||血糖|||||||||
+<span style="color:#6366f1;">  OBX-5=5.2(检测值) OBX-6=mmol/L(单位) OBX-7=3.9(下限) OBX-8=6.1(上限)</span>
+<span style="color:#6366f1;">  OBX-12=N(正常) OBX-20=血糖(中文名称)</span>`,
+    ack: `<span style="color:#059669;">[设备→LIS] ACK^Q03 查询确认</span>
+MSH|^~\\&|IVD|SMART9000|LIS|HIS|20260804091647||ACK^Q03|<span style="color:#ef4444;font-weight:700;">488</span>|P|2,3,1||||1||ASCII|||
+<span style="color:#6366f1;">  MSH-8=ACK^Q03(查询确认) MSH-10=<span style="color:#ef4444;font-weight:700;">488</span>(与QRY一致)</span>
+MSA|AA|<span style="color:#ef4444;font-weight:700;">1</span>|OK|||0|
+<span style="color:#6366f1;">  MSA-1=AA(接受) MSA-2=<span style="color:#ef4444;font-weight:700;">1</span>(确认ID)</span>
+
+<span style="color:#d97706;">[LIS→设备] ACK^R01 结果确认</span>
+MSH|^~\\&|LIS|HIS|IVD|SMART9000|20260804101327||ACK^R01|<span style="color:#ef4444;font-weight:700;">1</span>|P|2,3,1||||1||ASCII|||
+MSA|AA|<span style="color:#ef4444;font-weight:700;">511</span>|OK|||0|
+<span style="color:#6366f1;">  MSA-2=<span style="color:#ef4444;font-weight:700;">511</span>(与ORU的MSH-10一致) <span style="color:#ef4444;">⚠配对验证</span></span>`
+};
+const VENUS_FLOW = {};
+function switchSeries() {
+    const series = document.getElementById('tplSeries').value;
+    if (series === 'smart') {
+        ['flow','qry','oru','ack'].forEach(t => {
+            const el = document.getElementById('tpl' + t.charAt(0).toUpperCase() + t.slice(1));
+            if (el) {
+                const preview = el.querySelector('.msg-preview');
+                if (preview) preview.innerHTML = SMART_DATA[t] || '';
+            }
+        });
+    } else {
+        location.reload();
+    }
 }
 function syncTemplate() {
     const msgType = document.getElementById('msgType').value;
